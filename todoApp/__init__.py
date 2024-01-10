@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from dotenv import load_dotenv
 from .extensions.db import db
+from .todoRoutes import todos
 
 load_dotenv()
 
@@ -20,7 +21,11 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
+    app.register_blueprint(todos)
+
     with app.app_context():
+
+        # for development only
         db.drop_all()
         db.create_all()
 
@@ -29,3 +34,9 @@ def create_app(test_config=None):
         return "Hello World!"
 
     return app
+
+
+if __name__ == '__main__':
+    # Change the IP address and port as needed
+    app_instance = create_app()
+    app_instance.run(port=8080)
