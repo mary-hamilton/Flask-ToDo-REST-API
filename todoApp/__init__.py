@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from dotenv import load_dotenv
 from .extensions.db import db
+from .models.Todo import Todo
 from .todoRoutes import todos
 
 load_dotenv()
@@ -35,8 +36,3 @@ def create_app(test_config=None):
 
     return app
 
-
-if __name__ == '__main__':
-    # Change the IP address and port as needed
-    app_instance = create_app()
-    app_instance.run(port=8080)
