@@ -15,7 +15,7 @@ db = pymysql.connections.Connection(
 cursor = db.cursor()
 
 # Executing SQL query
-cursor.execute("CREATE DATABASE IF NOT EXISTS flask_todo_db")
+cursor.execute("CREATE DATABASE IF NOT EXISTS flask_todo_db_test")
 cursor.execute("SHOW DATABASES")
 
 # Displaying databases

@@ -1,6 +1,8 @@
 import json
 
 from flask import Blueprint, jsonify, request
+from sqlalchemy.exc import OperationalError
+
 from .extensions.db import db
 from .models.Todo import Todo, serialize_todo
 
@@ -9,7 +11,6 @@ todos = Blueprint('todos', __name__)
 
 @todos.post('/todos')
 def add_todo():
-
     # get relevant data from request
     data = request.get_json()
     title, description = data.get('title', None), data.get('description', None)
@@ -34,3 +35,12 @@ def add_todo():
         error = exception_message
         return jsonify('Error: {}.'.format(error)), 400
 
+
+@todos.get('/todos')
+def get_todos():
+    found_todos = Todo.query.all()
+    print(found_todos)
+    if not found_todos:
+        return "", 204
+    serialized_todos = [serialize_todo(found_todo) for found_todo in found_todos]
+    return jsonify(serialized_todos)

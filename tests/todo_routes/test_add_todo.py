@@ -1,10 +1,10 @@
 import pytest
 
 from todoApp.models.Todo import *
-from .fixtures import client, app
+from tests.fixtures import client, app
 
 
-def test_add_todo(client, app):
+def test_successful_add_todo(client, app):
     data = {"title": "Test Title", "description": "Test Description"}
     expected_response_data = {**data, "id": 1}
     response = client.post('/todos', json=data)
@@ -69,3 +69,15 @@ def test_cannot_add_todo_description_over_250_characters(client, app):
     assert response.status_code == 400
     assert added_todo is None
     assert response.json == "Error: Your todo description must be 250 characters or under."
+
+
+def test_cannot_add_todo_with_duplicate_title(client, app):
+    data = {"title": "Test Title", "description": "Test Description"}
+    client.post('/todos', json=data)
+    response = client.post('/todos', json=data)
+    first_added_todo = Todo.query.get(1)
+    second_added_todo = Todo.query.get(2)
+    assert response.status_code == 400
+    assert serialize_todo(first_added_todo) == {**data, "id": 1}
+    assert second_added_todo is None
+    assert response.json == "Error: Your todo must have a unique title."

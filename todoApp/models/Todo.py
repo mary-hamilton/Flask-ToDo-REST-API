@@ -4,7 +4,7 @@ from ..extensions.db import db
 
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    title = db.Column(db.String(40), nullable=False)
+    title = db.Column(db.String(40), nullable=False, unique=True)
     description = db.Column(db.String(250))
 
     def __init__(self, title, description):
@@ -17,6 +17,8 @@ class Todo(db.Model):
             raise AssertionError('Your todo needs a title')
         if len(title) > 40:
             raise AssertionError('Your todo title must be 40 characters or under')
+        if Todo.query.filter_by(title=title).first():
+            raise AssertionError('Your todo must have a unique title')
         return title
 
     @validates('description')

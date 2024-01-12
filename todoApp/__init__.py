@@ -1,38 +1,31 @@
 import os
 from flask import Flask
-from dotenv import load_dotenv
 from .extensions.db import db
 from .models.Todo import Todo
-from .todoRoutes import todos
+from .todo_routes import todos
+from .config import *
 
-load_dotenv()
 
+# Do not try and initialise with a default config and then overwrite it elsewhere, IT DOES NOT WORK!
+# "The issue might be related to the fact that configuration settings, once set in the create_app function,
+# are essentially fixed for the lifetime of the Flask application object. When you call create_app in your
+# test file and try to override the configuration, you might be encountering limitations in how Flask handles
+# these configurations."
+def create_app(config_class=DevelopmentConfig):
 
-def create_app(test_config=None):
-
-    db_host = os.environ.get("DB_HOST")
-    db_user = os.environ.get("DB_USER")
-    db_password = os.environ.get("DB_PASSWORD")
-
-    app = Flask(__name__, instance_relative_config=True)
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{db_user}:{db_password}@{db_host}/flask_todo_db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-    app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
+    app = Flask(__name__)
+    app.config.from_object(config_class)
 
     db.init_app(app)
 
     app.register_blueprint(todos)
 
     with app.app_context():
-
-        # for development only
+        # development only
         db.drop_all()
         db.create_all()
 
-    @app.get('/')
-    def hello_world():
-        return "Hello World!"
-
     return app
+
+
 
