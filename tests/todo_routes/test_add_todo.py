@@ -56,7 +56,7 @@ def test_cannot_add_todo_title_over_40_characters(client, app):
     added_todo = Todo.query.get(1)
     assert response.status_code == 400
     assert added_todo is None
-    assert response.json == "Error: Your todo title must be 40 characters or under."
+    assert response.json == "Error: Your todo title must be 40 characters or fewer."
 
 
 def test_cannot_add_todo_description_over_250_characters(client, app):
@@ -68,7 +68,7 @@ def test_cannot_add_todo_description_over_250_characters(client, app):
     added_todo = Todo.query.get(1)
     assert response.status_code == 400
     assert added_todo is None
-    assert response.json == "Error: Your todo description must be 250 characters or under."
+    assert response.json == "Error: Your todo description must be 250 characters or fewer."
 
 
 def test_cannot_add_todo_with_duplicate_title(client, app):

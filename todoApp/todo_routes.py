@@ -13,7 +13,7 @@ todos = Blueprint('todos', __name__)
 def add_todo():
     # get relevant data from request
     data = request.get_json()
-    title, description = data.get('title', None), data.get('description', None)
+    title, description = data.get('title'), data.get('description')
 
     try:
         # create instance of To*do model

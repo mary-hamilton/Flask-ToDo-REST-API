@@ -5,18 +5,19 @@ from ..extensions.db import db
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     title = db.Column(db.String(40), nullable=False, unique=True)
-    description = db.Column(db.String(250))
+    description = db.Column(db.String(250), nullable=True)
 
     def __init__(self, title, description):
         self.title = title
         self.description = description
 
+    # <key> parameter is required in validators or they won't work
     @validates('title')
     def validate_title(self, key, title):
         if not title:
             raise AssertionError('Your todo needs a title')
         if len(title) > 40:
-            raise AssertionError('Your todo title must be 40 characters or under')
+            raise AssertionError('Your todo title must be 40 characters or fewer')
         if Todo.query.filter_by(title=title).first():
             raise AssertionError('Your todo must have a unique title')
         return title
@@ -25,7 +26,7 @@ class Todo(db.Model):
     def validate_description(self, key, description):
         if description:
             if len(description) > 250:
-                raise AssertionError('Your todo description must be 250 characters or under')
+                raise AssertionError('Your todo description must be 250 characters or fewer')
             return description
 
 
