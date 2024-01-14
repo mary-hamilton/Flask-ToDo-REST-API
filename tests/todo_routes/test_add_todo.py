@@ -17,7 +17,7 @@ def test_successful_add_todo(client, app):
     assert response.json == expected_response_data
 
 
-def test_can_add_todo_without_description(client, app):
+def test_successful_add_todo_without_description(client, app):
     data = {"title": "Test Title"}
     expected_response_data = {**data, "id": 1}
     response = client.post('/todos', json=data)
@@ -31,6 +31,12 @@ def test_can_add_todo_without_description(client, app):
 
 
     # Validation tests
+
+def test_cannot_add_todo_with_invalid_data_type(client, app):
+    data = {"title": "Test Title", "description": 1234}
+    response = client.post('/todos', json=data)
+    assert response.json == "Error: Your description must be a string."
+
 
 def test_cannot_add_todo_null_title(client, app):
     data = {"title": None, "description": "Test Description"}
@@ -81,3 +87,5 @@ def test_cannot_add_todo_with_duplicate_title(client, app):
     assert serialize_todo(first_added_todo) == {**data, "id": 1}
     assert second_added_todo is None
     assert response.json == "Error: Your todo must have a unique title."
+
+

@@ -1,13 +1,17 @@
-from sqlalchemy.orm import validates
+from typing import Optional
+
+from sqlalchemy.orm import validates, Mapped
+
+from ..exceptions.validation_exception import ValidationException
 from ..extensions.db import db
 
 
 class Todo(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    title = db.Column(db.String(40), nullable=False, unique=True)
-    description = db.Column(db.String(250), nullable=True)
+    id: Mapped[int] = db.mapped_column(primary_key=True, autoincrement=True)
+    title: Mapped[str] = db.mapped_column(db.String(40), unique=True)
+    description: Mapped[Optional[str]] = db.mapped_column(db.String(250))
 
-    def __init__(self, title, description):
+    def __init__(self, title, description=None):
         self.title = title
         self.description = description
 
@@ -15,18 +19,20 @@ class Todo(db.Model):
     @validates('title')
     def validate_title(self, key, title):
         if not title:
-            raise AssertionError('Your todo needs a title')
+            raise ValidationException('Your todo needs a title')
+        if not isinstance(title, str):
+            raise ValidationException('Your title must be a string')
         if len(title) > 40:
-            raise AssertionError('Your todo title must be 40 characters or fewer')
-        if Todo.query.filter_by(title=title).first():
-            raise AssertionError('Your todo must have a unique title')
+            raise ValidationException('Your todo title must be 40 characters or fewer')
         return title
 
     @validates('description')
     def validate_description(self, key, description):
         if description:
+            if not isinstance(description, str):
+                raise ValidationException('Your description must be a string')
             if len(description) > 250:
-                raise AssertionError('Your todo description must be 250 characters or fewer')
+                raise ValidationException('Your todo description must be 250 characters or fewer')
             return description
 
 

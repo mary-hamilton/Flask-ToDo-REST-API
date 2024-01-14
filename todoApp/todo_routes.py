@@ -3,6 +3,7 @@ import json
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import OperationalError
 
+from .exceptions.validation_exception import ValidationException
 from .extensions.db import db
 from .models.Todo import Todo, serialize_todo
 
@@ -16,13 +17,16 @@ def add_todo():
     title, description = data.get('title'), data.get('description')
 
     try:
+        if Todo.query.filter_by(title=title).first():
+            raise ValidationException('Your todo must have a unique title')
+
         # create instance of To*do model
         todo_to_add = Todo(title=title, description=description)
 
         # add new instance to SQLAlchemy session and schedule it for insertion into db
         db.session.add(todo_to_add)
 
-        # commits scheduled changes to db and EXPIRES SESSION OBJECT
+        # commits scheduled changes to db and EXPIRES SESSION OBJECT (it's empty now)
         db.session.commit()
 
         # actual magic here
@@ -31,13 +35,13 @@ def add_todo():
         added_todo = Todo.query.get(todo_to_add.id)
         return jsonify(serialize_todo(added_todo)), 201
 
-    except AssertionError as exception_message:
+    except ValidationException as exception_message:
         error = exception_message
         return jsonify('Error: {}.'.format(error)), 400
 
 
 @todos.get('/todos')
-def get_todos():
+def get_all_todos():
     found_todos = Todo.query.all()
     print(found_todos)
     if not found_todos:
