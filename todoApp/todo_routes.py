@@ -1,7 +1,8 @@
 import json
+import re
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, NoResultFound
 
 from .exceptions.validation_exception import ValidationException
 from .extensions.db import db
@@ -43,8 +44,20 @@ def add_todo():
 @todos.get('/todos')
 def get_all_todos():
     found_todos = Todo.query.all()
-    print(found_todos)
-    if not found_todos:
-        return "", 204
     serialized_todos = [serialize_todo(found_todo) for found_todo in found_todos]
     return jsonify(serialized_todos)
+
+
+@todos.get('/todos/<todo_id>')
+def get_todo(todo_id):
+    try:
+        only_digits = re.compile(r'^\d+$')
+        if not only_digits.match(todo_id):
+            raise ValidationException('ID route parameter must be an integer')
+        found_todo = Todo.query.filter_by(id=todo_id).one()
+        return jsonify(serialize_todo(found_todo))
+    except ValidationException as error:
+        return jsonify('Error: {}.'.format(error)), 400
+    except NoResultFound:
+        error = "No result found for todo ID \"{}\"".format(todo_id)
+        return jsonify('Error: {}.'.format(error)), 404
