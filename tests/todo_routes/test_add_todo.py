@@ -30,7 +30,7 @@ def test_successful_add_todo_without_description(client, app):
     assert response.json == expected_response_data
 
 
-    # Validation tests
+    # Validation tests_todoApp
 
 def test_cannot_add_todo_with_invalid_data_type(client, app):
     data = {"title": "Test Title", "description": 1234}

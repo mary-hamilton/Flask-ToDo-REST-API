@@ -25,13 +25,13 @@ def test_successful_get_todo_when_multiple_todos_in_database(client, multiple_sa
 def test_todo_not_found_when_database_empty(client):
     response = client.get("/todos/1")
     assert response.status_code == 404
-    assert response.json == "Error: No result found for todo ID \"1\"."
+    assert response.json == "Error: No result found for todo ID 1."
 
 
-def test_todo_not_found_when_database_populater(client, multiple_sample_todos):
+def test_todo_not_found_when_multiple_todos_in_database(client, multiple_sample_todos):
     response = client.get("/todos/4")
     assert response.status_code == 404
-    assert response.json == "Error: No result found for todo ID \"4\"."
+    assert response.json == "Error: No result found for todo ID 4."
 
 
 def test_cannot_use_invalid_route_parameter_type(client):

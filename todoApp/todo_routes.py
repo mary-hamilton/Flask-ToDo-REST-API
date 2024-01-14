@@ -7,6 +7,7 @@ from sqlalchemy.exc import OperationalError, NoResultFound
 from .exceptions.validation_exception import ValidationException
 from .extensions.db import db
 from .models.Todo import Todo, serialize_todo
+from .utils.validation_utils import validate_todo_route_param
 
 todos = Blueprint('todos', __name__)
 
@@ -51,13 +52,28 @@ def get_all_todos():
 @todos.get('/todos/<todo_id>')
 def get_todo(todo_id):
     try:
-        only_digits = re.compile(r'^\d+$')
-        if not only_digits.match(todo_id):
-            raise ValidationException('ID route parameter must be an integer')
+        validate_todo_route_param(todo_id)
         found_todo = Todo.query.filter_by(id=todo_id).one()
         return jsonify(serialize_todo(found_todo))
     except ValidationException as error:
         return jsonify('Error: {}.'.format(error)), 400
     except NoResultFound:
-        error = "No result found for todo ID \"{}\"".format(todo_id)
+        error = "No result found for todo ID {}".format(todo_id)
+        return jsonify('Error: {}.'.format(error)), 404
+
+
+@todos.delete('/todos/<todo_id>')
+def delete_todo(todo_id):
+    try:
+        validate_todo_route_param(todo_id)
+        # Do I need to think about what would happen if there were somehow multiple todos with same ID in database?
+        # surely not!
+        todo_to_delete = Todo.query.filter_by(id=todo_id).one()
+        db.session.delete(todo_to_delete)
+        db.session.commit()
+        return jsonify("Todo successfully deleted.")
+    except ValidationException as error:
+        return jsonify('Error: {}.'.format(error)), 400
+    except NoResultFound:
+        error = "Cannot delete todo, no result found for todo ID {}".format(todo_id)
         return jsonify('Error: {}.'.format(error)), 404
