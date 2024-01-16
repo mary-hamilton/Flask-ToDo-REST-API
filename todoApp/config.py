@@ -11,9 +11,11 @@ class Config:
 
 class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_URI')
+    SQLALCHEMY_ECHO = True
     SECRET_KEY = os.environ.get('DEV_SECRET_KEY')
 
 
 class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_URI')
+    SQLALCHEMY_ECHO = True
     TESTING = True

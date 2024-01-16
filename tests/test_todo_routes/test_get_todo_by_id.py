@@ -15,6 +15,11 @@ def test_successful_get_todo_when_single_todo_in_database(client, create_todo):
 
 
 def test_successful_get_todo_when_multiple_todos_in_database(client, multiple_sample_todos):
+    response = client.get("/todos/2")
+    assert response.status_code == 200
+    assert response.json is not None
+    assert response.json["title"] == "Test Title 2"
+    assert response.json.get("description") == "Test Description"
     response = client.get("/todos/3")
     assert response.status_code == 200
     assert response.json is not None

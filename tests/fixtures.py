@@ -1,7 +1,7 @@
 import pytest
 
 from todoApp import Todo
-from todoApp.__init__ import create_app
+from todoApp import create_app
 from todoApp.config import *
 from todoApp.extensions.db import db
 

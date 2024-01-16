@@ -19,7 +19,7 @@ def add_todo():
     title, description = data.get('title'), data.get('description')
 
     try:
-        if Todo.query.filter_by(title=title).first():
+        if db.session.scalars(db.select(Todo).filter_by(title=title)).first():
             raise ValidationException('Your todo must have a unique title')
 
         # create instance of To*do model
@@ -34,7 +34,7 @@ def add_todo():
         # actual magic here
         # gets todo_to_add out of the identity map for the previous session and then refreshes it with the current
         # values from the db - so now our data is back and we have an id!
-        added_todo = Todo.query.get(todo_to_add.id)
+        added_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_to_add.id)).one()
         return jsonify(serialize_todo(added_todo)), 201
 
     except ValidationException as exception_message:
@@ -44,7 +44,7 @@ def add_todo():
 
 @todos.get('/todos')
 def get_all_todos():
-    found_todos = Todo.query.all()
+    found_todos = db.session.scalars(db.select(Todo)).all()
     serialized_todos = [serialize_todo(found_todo) for found_todo in found_todos]
     return jsonify(serialized_todos)
 
@@ -53,7 +53,7 @@ def get_all_todos():
 def get_todo(todo_id):
     try:
         validate_todo_route_param(todo_id)
-        found_todo = Todo.query.filter_by(id=todo_id).one()
+        found_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
         return jsonify(serialize_todo(found_todo))
     except ValidationException as error:
         return jsonify('Error: {}.'.format(error)), 400
@@ -66,9 +66,7 @@ def get_todo(todo_id):
 def delete_todo(todo_id):
     try:
         validate_todo_route_param(todo_id)
-        # Do I need to think about what would happen if there were somehow multiple todos with same ID in database?
-        # surely not!
-        todo_to_delete = Todo.query.filter_by(id=todo_id).one()
+        todo_to_delete = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
         db.session.delete(todo_to_delete)
         db.session.commit()
         return jsonify("Todo successfully deleted.")
