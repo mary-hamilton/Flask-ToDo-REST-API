@@ -2,7 +2,7 @@ import json
 import re
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy.exc import OperationalError, NoResultFound
+from sqlalchemy.exc import OperationalError, NoResultFound, IntegrityError
 
 from .exceptions.validation_exception import ValidationException
 from .extensions.db import db
@@ -75,3 +75,34 @@ def delete_todo(todo_id):
     except NoResultFound:
         error = "Cannot delete todo, no result found for todo ID {}".format(todo_id)
         return jsonify('Error: {}.'.format(error)), 404
+
+
+@todos.patch('/todos/<todo_id>')
+def edit_todo(todo_id):
+    try:
+        validate_todo_route_param(todo_id)
+        todo_to_edit = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
+        data = request.get_json()
+
+        # this method of updating assumes that client will either send back the original data unaltered for any
+        # attribute they do not want to edit, or they will not send that attribute at all: any attribute that is
+        # returned with a null value is intended to delete any existing value for that attribute in the database.
+        # if a key is not included in the request, the database for that attribute will not be altered,
+        # but if a key is included and its value is null, the value of the attribute will be set to None.
+
+        # Explicit attribute names rather than a loop to ensure data integrity
+        if "title" in data:
+            if todo_to_edit.title != data.get("title") and db.session.scalars(db.select(Todo).filter_by(title=data.get("title"))).first():
+                raise ValidationException('Your todo must have a unique title')
+            setattr(todo_to_edit, "title", data.get("title"))
+        if "description" in data:
+            setattr(todo_to_edit, "description", data.get("description"))
+        db.session.commit()
+        edited_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
+        return jsonify(serialize_todo(edited_todo))
+    except ValidationException as error:
+        return jsonify('Error: {}.'.format(error)), 400
+    except NoResultFound:
+        error = "Cannot edit todo, no result found for todo ID {}".format(todo_id)
+        return jsonify('Error: {}.'.format(error)), 404
+
