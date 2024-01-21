@@ -2,12 +2,12 @@ import json
 import re
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy.exc import OperationalError, NoResultFound, IntegrityError
+from sqlalchemy.exc import NoResultFound
 
-from .exceptions.validation_exception import ValidationException
-from .extensions.db import db
-from .models.Todo import Todo, serialize_todo
-from .utils.validation_utils import validate_todo_route_param
+from todoApp.exceptions.validation_exception import ValidationException
+from todoApp.extensions.db import db
+from todoApp.models.Todo import Todo, serialize_todo
+from todoApp.utils.validation_utils import validate_todo_route_param
 
 todos = Blueprint('todos', __name__)
 
@@ -39,7 +39,7 @@ def add_todo():
 
     except ValidationException as exception_message:
         error = exception_message
-        return jsonify('Error: {}.'.format(error)), 400
+        return jsonify(f"Error: {error}."), 400
 
 
 @todos.get('/todos')
