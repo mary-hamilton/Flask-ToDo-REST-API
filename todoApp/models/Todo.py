@@ -4,10 +4,11 @@ from sqlalchemy.orm import validates, Mapped
 
 from ..exceptions.validation_exception import ValidationException
 from ..extensions.db import db
+from ..utils.serialize_function import serialize_model
 
 
 class Todo(db.Model):
-    id: Mapped[int] = db.mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[int] = db.mapped_column(primary_key=True)
     title: Mapped[str] = db.mapped_column(db.String(40), unique=True)
     description: Mapped[Optional[str]] = db.mapped_column(db.String(250))
 
@@ -36,16 +37,7 @@ class Todo(db.Model):
             return description
 
 
-def serialize_todo(obj):
-    # Should handle with and without ID
-    if isinstance(obj, Todo):
-        data = {}
-        for key, value in obj.__dict__.items():
-            # handles not returning null values
-            # might change this, not sure of best format yet
-            if not key.startswith('_') and value is not None:
-                data[key] = value
-        return data
-    raise TypeError(f"Object of type '{type(obj).__name__}' is not JSON serializable")
+def serialize_todo(todo_to_serialize):
+    return serialize_model(todo_to_serialize, Todo)
 
 

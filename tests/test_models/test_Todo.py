@@ -1,6 +1,7 @@
 import pytest
 from todoApp.models.Todo import *
 from tests.fixtures import app
+from todoApp.utils.serialize_function import serialize_model
 
 
 def test_successful_todo(app):
