@@ -4,6 +4,7 @@ from todoApp import Todo
 from todoApp import create_app
 from todoApp.config import *
 from todoApp.extensions.db import db
+from todoApp.models.User import User
 
 
 @pytest.fixture()
@@ -37,3 +38,12 @@ def multiple_sample_todos(client, create_todo):
     create_todo()
     create_todo(title="Test Title 2")
     create_todo(title="Test Title 3", description=None)
+
+
+@pytest.fixture
+def create_user():
+    def _create_user(first_name="Jan", last_name="West", username="janwest", password_plaintext="Password123"):
+        user_to_add = User(first_name=first_name, last_name=last_name, username=username, password_plaintext=password_plaintext)
+        db.session.add(user_to_add)
+        db.session.commit()
+    return _create_user

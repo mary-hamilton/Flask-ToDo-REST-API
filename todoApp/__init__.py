@@ -1,8 +1,9 @@
-import os
 from flask import Flask
+
+from .blueprints.user_routes import users
 from .extensions.db import db
 from .models.Todo import Todo
-from .todo_routes import todos
+from todoApp.blueprints.todo_routes import todos
 from .config import *
 
 
@@ -18,7 +19,9 @@ def create_app(config_class=DevelopmentConfig):
 
     db.init_app(app)
 
+    app.register_blueprint(users)
     app.register_blueprint(todos)
+
 
     with app.app_context():
         # development only
