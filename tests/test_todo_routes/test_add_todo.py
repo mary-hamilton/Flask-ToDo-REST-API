@@ -1,3 +1,5 @@
+import pytest
+
 from todoApp.models.Todo import *
 from tests.fixtures import client, app
 

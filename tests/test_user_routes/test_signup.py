@@ -1,4 +1,6 @@
+import jwt
 import pytest
+from flask import current_app
 
 from tests.fixtures import client, app, create_user
 from todoApp import db
@@ -19,10 +21,12 @@ def test_successful_signup(client):
     assert added_user.last_name == "Puff"
     assert added_user.username == "steviep"
     assert added_user.check_password("Password123") is True
-    assert response.json.get("first_name") == "Steven"
-    assert response.json.get("last_name") == "Puff"
-    assert response.json.get("username") == "steviep"
-    assert response.json.get("password_plaintext") is None
+    assert response.json["user"].get("first_name") == "Steven"
+    assert response.json["user"].get("last_name") == "Puff"
+    assert response.json["user"].get("username") == "steviep"
+    assert response.json["user"].get("password_plaintext") is None
+    token = response.json["token"]
+    assert jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])["sub"] == "steviep"
 
 
 def test_username_already_taken(client, create_user):

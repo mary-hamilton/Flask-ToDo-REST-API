@@ -18,4 +18,5 @@ class DevelopmentConfig(Config):
 class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_URI')
     SQLALCHEMY_ECHO = True
+    SECRET_KEY = "this is a secret key"
     TESTING = True
