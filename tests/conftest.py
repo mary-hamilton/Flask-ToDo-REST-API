@@ -2,6 +2,7 @@ import pytest
 
 from todoApp import Todo
 from todoApp import create_app
+from todoApp.blueprints.user_routes import make_token
 from todoApp.config import *
 from todoApp.extensions.db import db
 from todoApp.models.User import User
@@ -19,6 +20,17 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture()
+def authenticated_client(app, create_user):
+    test_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
+    token = make_token(test_user.public_id)
+    # is this legit?
+    client = app.test_client()
+    client.current_user = test_user
+    client.environ_base['HTTP_AUTHORIZATION'] = f"Bearer {token}"
+    return client
+
+
 @pytest.fixture
 def create_todo(create_user):
 
@@ -34,7 +46,7 @@ def create_todo(create_user):
 
 
 @pytest.fixture
-def multiple_sample_todos(client, create_todo):
+def multiple_sample_todos(authenticated_client, create_todo):
     create_todo()
     create_todo(title="Test Title 2")
     create_todo(title="Test Title 3", description=None)

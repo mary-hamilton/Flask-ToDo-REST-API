@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import datetime, timedelta
+from functools import wraps
 
 import jwt
 from flask import Blueprint, jsonify, request, current_app
@@ -13,6 +14,7 @@ from todoApp.models.User import User, serialize_user
 users = Blueprint('users', __name__)
 
 
+#TODO need to add exception handling for all jwt methods
 def make_token(public_user_id):
     payload = {"sub": public_user_id, "iat": datetime.utcnow(), "exp": datetime.utcnow() + timedelta(hours=2)}
     return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm="HS256")
@@ -21,6 +23,23 @@ def make_token(public_user_id):
 def decode_token(token):
     payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
     return payload["sub"]
+
+
+def require_token(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization').replace('Bearer ', '')
+        if not token:
+            return jsonify("Error: Token is missing"), 401
+        public_user_id = decode_token(token)
+        current_user = db.session.scalars(db.select(User).filter_by(public_id=public_user_id)).first()
+        if not current_user:
+            pass
+        return f(current_user, *args, **kwargs)
+    return decorated
+
+
+
 
 
 @users.post('/signup')
@@ -36,7 +55,7 @@ def create_user():
         db.session.add(user_to_add)
         db.session.commit()
         added_user = db.session.scalars(db.select(User).filter_by(id=user_to_add.id)).one()
-        token = make_token(added_user.username)
+        token = make_token(added_user.public_id)
         return jsonify({"token": token, "user": serialize_user(added_user)}), 201
     except ValidationException as error:
         return jsonify(f"Error: {error}."), 400
@@ -54,7 +73,7 @@ def login_user():
             raise NoResultFound("User not found")
         if found_user.check_password(password_plaintext) is False:
             raise ValidationException("Incorrect password")
-        token = make_token(username)
+        token = make_token(found_user.public_id)
         return jsonify({"token": token}), 200
     except ValidationException as error:
         return jsonify(f"Error: {error}."), 401, {"WWW-Authenticate": "Basic"}

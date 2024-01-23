@@ -5,15 +5,15 @@ import pytest
 from tests.conftest import *
 
 
-def test_returns_empty_if_no_todos_exist(client):
-    response = client.get('/todos')
+def test_returns_empty_if_no_todos_exist(authenticated_client):
+    response = authenticated_client.get('/todos')
     assert response.status_code == 200
     assert response.json == []
 
 
-def test_returns_single_todo(client, create_todo):
+def test_returns_single_todo(authenticated_client, create_todo):
     create_todo()
-    response = client.get('/todos')
+    response = authenticated_client.get('/todos')
     response_data = response.json
     assert response.status_code == 200
     assert len(response.json) == 1
@@ -22,8 +22,8 @@ def test_returns_single_todo(client, create_todo):
     assert response_data[0].get('id') == 1
 
 
-def test_returns_list_of_multiple_todos(client, multiple_sample_todos):
-    response = client.get("/todos")
+def test_returns_list_of_multiple_todos(authenticated_client, multiple_sample_todos):
+    response = authenticated_client.get("/todos")
     response_data = response.json
     assert response.status_code == 200
     assert len(response_data) == 3

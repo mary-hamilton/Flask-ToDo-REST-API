@@ -3,14 +3,18 @@ import pytest
 from flask import current_app
 
 from tests.conftest import client, app, create_user_flex
+from todoApp import db
+from todoApp.models.User import User
 
 
 def test_successful_login(client, create_user_flex):
     create_user_flex()
     response = client.post('/login', auth=("janwest", "Password123"))
+    logged_in_user = db.session.scalars(db.select(User).filter_by(username="janwest")).first()
+    public_id = logged_in_user.public_id
     assert response.status_code == 200
     token = response.json["token"]
-    assert jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])["sub"] == "janwest"
+    assert jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])["sub"] == public_id
 
 
 def test_user_not_found(client):

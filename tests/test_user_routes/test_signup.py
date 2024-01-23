@@ -2,7 +2,7 @@ import jwt
 import pytest
 from flask import current_app
 
-from tests.conftest import client, app, create_user_flex
+from tests.conftest import authenticated_client, client, app, create_user_flex
 from todoApp import db
 from todoApp.models.User import User
 
@@ -21,12 +21,13 @@ def test_successful_signup(client):
     assert added_user.last_name == "Puff"
     assert added_user.username == "steviep"
     assert added_user.check_password("Password123") is True
+    public_id = added_user.public_id
     assert response.json["user"].get("first_name") == "Steven"
     assert response.json["user"].get("last_name") == "Puff"
     assert response.json["user"].get("username") == "steviep"
     assert response.json["user"].get("password_plaintext") is None
     token = response.json["token"]
-    assert jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])["sub"] == "steviep"
+    assert jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])["sub"] == public_id
 
 
 def test_username_already_taken(client, create_user_flex):
