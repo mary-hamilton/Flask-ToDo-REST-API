@@ -20,14 +20,14 @@ def client(app):
 
 
 @pytest.fixture
-def create_todo():
+def create_todo(create_user):
 
     description_sentinel = object()
 
-    def _create_todo(title='Test Title', description=description_sentinel):
+    def _create_todo(title='Test Title', user_id=1, description=description_sentinel):
         if description is description_sentinel:
             description = 'Test Description'
-        todo_to_add = Todo(title=title, description=description)
+        todo_to_add = Todo(title=title, user_id=user_id, description=description)
         db.session.add(todo_to_add)
         db.session.commit()
     return _create_todo
@@ -41,9 +41,20 @@ def multiple_sample_todos(client, create_todo):
 
 
 @pytest.fixture
-def create_user():
+def create_user_flex():
     def _create_user(first_name="Jan", last_name="West", username="janwest", password_plaintext="Password123"):
         user_to_add = User(first_name=first_name, last_name=last_name, username=username, password_plaintext=password_plaintext)
         db.session.add(user_to_add)
         db.session.commit()
     return _create_user
+
+@pytest.fixture
+def create_user():
+    first_name = "Jan"
+    last_name = "West"
+    username = "janwest"
+    password_plaintext = "Password123"
+    user_to_add = User(first_name=first_name, last_name=last_name, username=username,
+                       password_plaintext=password_plaintext)
+    db.session.add(user_to_add)
+    db.session.commit()

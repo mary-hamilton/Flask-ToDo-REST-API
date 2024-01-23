@@ -1,5 +1,6 @@
 from typing import Optional
 
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import validates, Mapped
 
 from ..exceptions.validation_exception import ValidationException
@@ -11,10 +12,12 @@ class Todo(db.Model):
     id: Mapped[int] = db.mapped_column(primary_key=True)
     title: Mapped[str] = db.mapped_column(db.String(40), unique=True)
     description: Mapped[Optional[str]] = db.mapped_column(db.String(250))
+    user_id: Mapped[int] = db.mapped_column(ForeignKey('user.id'))
 
-    def __init__(self, title, description=None):
+    def __init__(self, title, user_id, description=None):
         self.title = title
         self.description = description
+        self.user_id = user_id
 
     # <key> parameter is required in validators or they won't work
     @validates('title')

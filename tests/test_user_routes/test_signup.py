@@ -2,7 +2,7 @@ import jwt
 import pytest
 from flask import current_app
 
-from tests.fixtures import client, app, create_user
+from tests.conftest import client, app, create_user_flex
 from todoApp import db
 from todoApp.models.User import User
 
@@ -29,8 +29,8 @@ def test_successful_signup(client):
     assert jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])["sub"] == "steviep"
 
 
-def test_username_already_taken(client, create_user):
-    create_user(username="steviep")
+def test_username_already_taken(client, create_user_flex):
+    create_user_flex(username="steviep")
     response = client.post("/signup", json=SAMPLE_SIGNUP_DATA)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=2)).first()

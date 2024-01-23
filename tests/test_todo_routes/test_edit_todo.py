@@ -4,9 +4,9 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import make_transient
 
 from todoApp.models.Todo import *
-from tests.fixtures import *
+from tests.conftest import *
 
-edited_data = {"title": "Edited Todo", "description": "Edited Description"}
+edited_data = {"title": "Edited Todo", "description": "Edited Description", "user_id" : 1}
 
 
 def test_successful_edit_todo_single_todo_in_database(client, create_todo):
@@ -20,7 +20,7 @@ def test_successful_edit_todo_single_todo_in_database(client, create_todo):
     assert response.json["id"] == original_todo.id
 
 
-def test_successful_edit_todo_multiple_todos_in_database(client, multiple_sample_todos):
+def test_successful_edit_todo_multiple_todos_in_database(client, create_user, multiple_sample_todos):
     original_todo = Todo.query.get(2)
     make_transient(original_todo)
     response = client.patch("/todos/2", json=edited_data)

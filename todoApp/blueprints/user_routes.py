@@ -13,8 +13,8 @@ from todoApp.models.User import User, serialize_user
 users = Blueprint('users', __name__)
 
 
-def make_token(username):
-    payload = {"sub": username, "iat": datetime.utcnow(), "exp": datetime.utcnow() + timedelta(hours=2)}
+def make_token(public_user_id):
+    payload = {"sub": public_user_id, "iat": datetime.utcnow(), "exp": datetime.utcnow() + timedelta(hours=2)}
     return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm="HS256")
 
 

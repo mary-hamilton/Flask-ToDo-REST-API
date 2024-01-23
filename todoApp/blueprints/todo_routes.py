@@ -16,14 +16,14 @@ todos = Blueprint('todos', __name__)
 def add_todo():
     # get relevant data from request
     data = request.get_json()
-    title, description = data.get('title'), data.get('description')
+    title, description, user_id = data.get('title'), data.get('description'), data.get('user_id')
 
     try:
         if db.session.scalars(db.select(Todo).filter_by(title=title)).first():
             raise ValidationException('Your todo must have a unique title')
 
         # create instance of To*do model
-        todo_to_add = Todo(title=title, description=description)
+        todo_to_add = Todo(title=title, description=description, user_id=user_id)
 
         # add new instance to SQLAlchemy session and schedule it for insertion into db
         db.session.add(todo_to_add)

@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.exc import NoResultFound
 
 from todoApp.models.Todo import *
-from tests.fixtures import *
+from tests.conftest import *
 
 
 def test_successful_delete_todo_single_todo_in_database(client, create_todo):

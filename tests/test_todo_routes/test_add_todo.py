@@ -1,11 +1,11 @@
 import pytest
 
 from todoApp.models.Todo import *
-from tests.fixtures import client, app
+from tests.conftest import client, app, create_user
 
 
-def test_successful_add_todo(client, app):
-    data = {"title": "Test Title", "description": "Test Description"}
+def test_successful_add_todo(client, app, create_user):
+    data = {"title": "Test Title", "description": "Test Description", "user_id": 1}
     expected_response_data = {**data, "id": 1}
     response = client.post('/todos', json=data)
     added_todo = Todo.query.get(1)
@@ -17,8 +17,8 @@ def test_successful_add_todo(client, app):
     assert response.json == expected_response_data
 
 
-def test_successful_add_todo_without_description(client, app):
-    data = {"title": "Test Title"}
+def test_successful_add_todo_without_description(client, app, create_user):
+    data = {"title": "Test Title", "user_id": 1}
     expected_response_data = {**data, "id": 1}
     response = client.post('/todos', json=data)
     added_todo = Todo.query.get(1)
@@ -32,14 +32,14 @@ def test_successful_add_todo_without_description(client, app):
 
     # Validation tests
 
-def test_cannot_add_todo_with_invalid_data_type(client, app):
-    data = {"title": "Test Title", "description": 1234}
+def test_cannot_add_todo_with_invalid_data_type(client, app, create_user):
+    data = {"title": "Test Title", "description": 1234, "user_id": 1}
     response = client.post('/todos', json=data)
     assert response.json == "Error: Your description must be a string."
 
 
-def test_cannot_add_todo_null_title(client, app):
-    data = {"title": None, "description": "Test Description"}
+def test_cannot_add_todo_null_title(client, app, create_user):
+    data = {"title": None, "description": "Test Description", "user_id": 1}
     response = client.post('/todos', json=data)
     added_todo = Todo.query.get(1)
     assert response.status_code == 400
@@ -47,8 +47,8 @@ def test_cannot_add_todo_null_title(client, app):
     assert response.json == "Error: Your todo needs a title."
 
 
-def test_cannot_add_todo_no_title_key(client, app):
-    data = {"description": "Test Description"}
+def test_cannot_add_todo_no_title_key(client, app, create_user):
+    data = {"description": "Test Description", "user_id": 1}
     response = client.post('/todos', json=data)
     added_todo = Todo.query.get(1)
     assert response.status_code == 400
@@ -56,8 +56,8 @@ def test_cannot_add_todo_no_title_key(client, app):
     assert response.json == "Error: Your todo needs a title."
 
 
-def test_cannot_add_todo_title_over_40_characters(client, app):
-    data = {"title": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARGH"}
+def test_cannot_add_todo_title_over_40_characters(client, app, create_user):
+    data = {"title": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARGH", "user_id": 1}
     response = client.post('/todos', json=data)
     added_todo = Todo.query.get(1)
     assert response.status_code == 400
@@ -65,11 +65,11 @@ def test_cannot_add_todo_title_over_40_characters(client, app):
     assert response.json == "Error: Your todo title must be 40 characters or fewer."
 
 
-def test_cannot_add_todo_description_over_250_characters(client, app):
+def test_cannot_add_todo_description_over_250_characters(client, app, create_user):
     data = {"title": "Test Title", "description": "Domestic cats, with their graceful charms and independent natures, "
                                                   "enchant as beloved companions. Playful antics and soothing purrs "
                                                   "make them universal darlings, seamlessly integrating into diverse "
-                                                  "households and leaving lasting impressions on hearts."}
+                                                  "households and leaving lasting impressions on hearts.", "user_id": 1}
     response = client.post('/todos', json=data)
     added_todo = Todo.query.get(1)
     assert response.status_code == 400
@@ -77,8 +77,8 @@ def test_cannot_add_todo_description_over_250_characters(client, app):
     assert response.json == "Error: Your todo description must be 250 characters or fewer."
 
 
-def test_cannot_add_todo_with_duplicate_title(client, app):
-    data = {"title": "Test Title", "description": "Test Description"}
+def test_cannot_add_todo_with_duplicate_title(client, app, create_user):
+    data = {"title": "Test Title", "description": "Test Description", "user_id": 1}
     client.post('/todos', json=data)
     response = client.post('/todos', json=data)
     first_added_todo = Todo.query.get(1)

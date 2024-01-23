@@ -2,11 +2,11 @@ import jwt
 import pytest
 from flask import current_app
 
-from tests.fixtures import client, app, create_user
+from tests.conftest import client, app, create_user_flex
 
 
-def test_successful_login(client, create_user):
-    create_user()
+def test_successful_login(client, create_user_flex):
+    create_user_flex()
     response = client.post('/login', auth=("janwest", "Password123"))
     assert response.status_code == 200
     token = response.json["token"]
@@ -33,8 +33,8 @@ def test_no_password(client):
     assert response.headers["WWW-Authenticate"] == "Basic"
 
 
-def test_wrong_password(client, create_user):
-    create_user()
+def test_wrong_password(client, create_user_flex):
+    create_user_flex()
     response = client.post('/login', auth=("janwest", "Password1234"))
     assert response.status_code == 401
     assert response.json == "Error: Incorrect password."

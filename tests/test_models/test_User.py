@@ -1,6 +1,6 @@
 import pytest
 
-from tests.fixtures import app
+from tests.conftest import app
 from todoApp.models.User import *
 
 
@@ -74,14 +74,16 @@ def test_cannot_use_password_with_spaces(app):
 
 def test_serialize_function_without_ID(app):
     test_user = User(first_name="Steven", last_name="Puff", username="steviep", password_plaintext="Password123")
+    public_id = test_user.public_id
     serialized_test_user = serialize_user(test_user)
-    assert serialized_test_user == {"first_name": "Steven", "last_name": "Puff", "username": "steviep"}
+    assert serialized_test_user == {"first_name": "Steven", "last_name": "Puff", "username": "steviep", "public_id": public_id}
     assert serialized_test_user.get("password") is None
 
 
 def test_serialize_function_with_ID(app):
     test_user = User(first_name="Steven", last_name="Puff", username="steviep", password_plaintext="Password123")
     test_user.id = 123
+    public_id = test_user.public_id
     serialized_test_user = serialize_user(test_user)
-    assert serialized_test_user == {"first_name": "Steven", "last_name": "Puff", "username": "steviep", "id": 123}
+    assert serialized_test_user == {"first_name": "Steven", "last_name": "Puff", "username": "steviep", "id": 123, "public_id": public_id}
     assert serialized_test_user.get("password") is None

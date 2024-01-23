@@ -1,22 +1,27 @@
 import re
-from typing import Optional
+import uuid
+from typing import Optional, List
 from sqlalchemy.orm import validates, Mapped
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from todoApp.exceptions.validation_exception import ValidationException
 from todoApp.extensions.db import db
+from todoApp.models.Todo import Todo
 from todoApp.utils.serialize_function import serialize_model
 from todoApp.utils.validation_utils import *
 
 
 class User(db.Model):
     id: Mapped[int] = db.mapped_column(db.Integer, primary_key=True)
+    public_id: Mapped[str] = db.mapped_column(db.String(128), unique=True)
     first_name: Mapped[str] = db.mapped_column(db.String(50))
     last_name: Mapped[str] = db.mapped_column(db.String(50))
     username: Mapped[str] = db.mapped_column(db.String(50), unique=True)
     _password: Mapped[str] = db.mapped_column(db.String(128))
+    todos: Mapped[List[Todo]] = db.relationship(backref="user")
 
     def __init__(self, first_name, last_name, username, password_plaintext):
+        self.public_id = str(uuid.uuid4())
         self.first_name = first_name
         self.last_name = last_name
         self.username = username
