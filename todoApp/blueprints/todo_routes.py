@@ -22,7 +22,7 @@ def add_todo(current_user):
 
     try:
         if db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(title=title)).first():
-            raise ValidationException('Your todo must have a unique title')
+            raise ValidationException("Your todo title must be unique")
 
         # create instance of To*do model
         todo_to_add = Todo(title=title, description=description, user_id=current_user.id)

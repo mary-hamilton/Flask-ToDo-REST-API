@@ -28,13 +28,16 @@ def decode_token(token):
 def require_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get('Authorization').replace('Bearer ', '')
+        token = None
+        raw_token = request.headers.get('Authorization')
+        if raw_token:
+            token = raw_token.replace('Bearer ', '')
         if not token:
             return jsonify("Error: Token is missing"), 401
         public_user_id = decode_token(token)
         current_user = db.session.scalars(db.select(User).filter_by(public_id=public_user_id)).first()
         if not current_user:
-            pass
+            raise NoResultFound
         return f(current_user, *args, **kwargs)
     return decorated
 
