@@ -36,8 +36,6 @@ def authenticated_client(app, create_user):
     return client
 
 
-# pytest fixture magic - if this fixture is passed along with a fixture named "authenticated",
-# is will grab the value of authenticated at the point that it is called
 @pytest.fixture(params=[True, False], ids=["authenticated", "unauthenticated"])
 def client(request, authenticated_client, unauthenticated_client):
     if request.param:

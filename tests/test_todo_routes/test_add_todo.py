@@ -138,11 +138,13 @@ def test_cannot_add_todo_with_duplicate_title(client, create_todo):
 
     expected_id = 2
     data = {"title": "Test Title", "description": "Test Description"}
-    create_todo(**data)
+    existing_todo = create_todo(**data)
+    existing_values = get_original_values(existing_todo)
 
     response = client.post('/todos', json=data)
 
     if client.authenticated:
+        assert_record_unchanged(existing_todo, existing_values)
         assert_todo_not_added_to_database(expected_id)
         assert_unsuccessful_response_generic(response, 400, DUPLICATE_TITLE_ERROR)
     else:

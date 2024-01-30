@@ -5,9 +5,13 @@ from todoApp.models.Todo import *
 from tests.conftest import *
 
 
-def assert_successful_response_get_todo_by_id(response, original_values, current_user):
-    expected_json = {**original_values, "user_id": current_user.id}
+def make_get_todo_json(expected_values, current_user):
+    expected_json = {**expected_values, "user_id": current_user.id}
     expected_json = remove_null_values(expected_json)
+    return expected_json
+
+def assert_successful_response_get_todo_by_id(response, original_values, current_user):
+    expected_json = make_get_todo_json(original_values, current_user)
     assert_successful_response_generic(response, 200, expected_json)
 
 def test_successful_get_todo_when_single_todo_in_database(client, create_todo):
