@@ -8,7 +8,7 @@ MISSING_TITLE_ERROR = "Error: Your todo needs a title."
 DUPLICATE_TITLE_ERROR = "Error: Your todo title must be unique."
 
 
-def assert_database_correct_add_todo(response, expected_response_data, current_user, todo_id):
+def assert_todo_added_to_database(response, expected_response_data, current_user, todo_id):
     todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=todo_id)).first()
     assert todo is not None
     for key, value in expected_response_data.items():
@@ -17,9 +17,14 @@ def assert_database_correct_add_todo(response, expected_response_data, current_u
         assert getattr(todo, key) == value
 
 
+def assert_todo_not_added_to_database(expected_id):
+    added_todo = db.session.scalars(
+        db.select(Todo).filter_by(id=expected_id)).first()
+    assert added_todo is None
+
+
 def assert_successful_response_add_todo(response, expected_response_data):
-    assert response.status_code == 201
-    assert response.json == expected_response_data
+    assert_successful_response_generic(response, 201, expected_response_data)
 
 
 
@@ -35,17 +40,19 @@ def assert_successful_response_add_todo(response, expected_response_data):
         )
     ]
 )
-def test_add_to_empty_database(authenticated, client, data):
+def test_add_to_empty_database(client, data):
 
     expected_id = 1
+
     response = client.post('/todos', json=data)
 
-    if authenticated:
+    if client.authenticated:
         current_user = client.current_user
         expected_response_data = {**data, "user_id": current_user.id, "id": expected_id}
         assert_successful_response_add_todo(response, expected_response_data)
-        assert_database_correct_add_todo(response, expected_response_data, current_user, expected_id)
+        assert_todo_added_to_database(response, expected_response_data, current_user, expected_id)
     else:
+        assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(response)
 
 
@@ -58,20 +65,22 @@ def test_add_to_empty_database(authenticated, client, data):
         pytest.param(
             {"title": "Test Title 4"},
             id="without_description"
-        )
+        ),
     ]
 )
-def test_add_to_populated_database(authenticated, client, data, multiple_sample_todos):
+def test_add_to_populated_database(client, data, multiple_sample_todos):
 
     expected_id = 4
+
     response = client.post('/todos', json=data)
 
-    if authenticated:
+    if client.authenticated:
         current_user = client.current_user
         expected_response_data = {**data, "user_id": current_user.id, "id": expected_id}
         assert_successful_response_add_todo(response, expected_response_data)
-        assert_database_correct_add_todo(response, expected_response_data, current_user, expected_id)
+        assert_todo_added_to_database(response, expected_response_data, current_user, expected_id)
     else:
+        assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(response)
 
 
@@ -110,22 +119,22 @@ def test_add_to_populated_database(authenticated, client, data, multiple_sample_
         )
     ]
 )
-def test_cannot_add_todo_validation_errors(authenticated, client, data, error_message):
+def test_cannot_add_todo_validation_errors(client, data, error_message):
+
     expected_id = 1
+
     response = client.post('/todos', json=data)
 
-    if authenticated:
-        current_user = client.current_user
-        added_todo = db.session.scalars(
-            db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=expected_id)).first()
-        assert added_todo is None
-        assert_unsuccessful_response(response, 400, error_message)
+    if client.authenticated:
+        assert_todo_not_added_to_database(expected_id)
+        assert_unsuccessful_response_generic(response, 400, error_message)
     else:
+        assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(response)
 
 
 
-def test_cannot_add_todo_with_duplicate_title(authenticated, client, create_todo):
+def test_cannot_add_todo_with_duplicate_title(client, create_todo):
 
     expected_id = 2
     data = {"title": "Test Title", "description": "Test Description"}
@@ -133,11 +142,9 @@ def test_cannot_add_todo_with_duplicate_title(authenticated, client, create_todo
 
     response = client.post('/todos', json=data)
 
-    if authenticated:
-        current_user = client.current_user
-        added_todo = db.session.scalars(
-            db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=expected_id)).first()
-        assert added_todo is None
-        assert_unsuccessful_response(response, 400, DUPLICATE_TITLE_ERROR)
+    if client.authenticated:
+        assert_todo_not_added_to_database(expected_id)
+        assert_unsuccessful_response_generic(response, 400, DUPLICATE_TITLE_ERROR)
     else:
+        assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(response)

@@ -5,42 +5,79 @@ from todoApp.models.Todo import *
 from tests.conftest import *
 
 
-def test_successful_delete_todo_single_todo_in_database(authenticated_client, create_todo):
-    create_todo()
-    response = authenticated_client.delete("/todos/1")
-    assert response.status_code == 200
-    assert response.json == "Todo successfully deleted."
-    assert Todo.query.get(1) is None
-    assert len(authenticated_client.get("/todos").json) == 0
+
+def assert_record_deleted(todo_id):
+    assert db.session.scalars(db.select(Todo).filter_by(id=todo_id)).first() is None
 
 
-def test_successful_delete_todo_multiple_todos_in_database(authenticated_client, multiple_sample_todos):
-    original_todos_length = len(authenticated_client.get("/todos").json)
-    response = authenticated_client.delete("/todos/3")
-    assert response.status_code == 200
-    assert response.json == "Todo successfully deleted."
-    assert Todo.query.get(3) is None
-    todos_after_deletion_length = len(authenticated_client.get("/todos").json)
-    assert todos_after_deletion_length == original_todos_length - 1
+def assert_successful_response_delete_todo(response):
+    assert_successful_response_generic(response, 200, "Todo successfully deleted.")
+
+def test_successful_delete_todo_single_todo_in_database(client, create_todo):
+
+    todo = create_todo()
+    original_values = get_original_values(todo)
+
+    response = client.delete(f"/todos/{original_values['id']}")
+
+    if client.authenticated:
+        assert_successful_response_delete_todo(response)
+        assert_record_deleted(original_values['id'])
+    else:
+        assert_record_unchanged(todo, original_values)
+        assert_unauthenticated_response(response)
 
 
-def test_cannot_delete_non_existent_todo_empty_database(authenticated_client):
-    response = authenticated_client.delete("/todos/1")
-    assert response.status_code == 404
-    assert response.json == "Error: Cannot delete todo, no result found for todo ID 1."
+def test_successful_delete_todo_multiple_todos_in_database(client, multiple_sample_todos):
+
+    todo = multiple_sample_todos[0]
+    original_values = get_original_values(todo)
+
+    response = client.delete(f"/todos/{original_values['id']}")
+
+    if client.authenticated:
+        assert_successful_response_delete_todo(response)
+        assert_record_deleted(original_values['id'])
+    else:
+        assert_record_unchanged(todo, original_values)
+        assert_unauthenticated_response(response)
 
 
-def test_cannot_delete_non_existent_todo_multiple_todos_in_database(authenticated_client, multiple_sample_todos):
-    original_todos_length = len(authenticated_client.get("/todos").json)
-    response = authenticated_client.delete("/todos/4")
-    assert response.status_code == 404
-    assert response.json == "Error: Cannot delete todo, no result found for todo ID 4."
-    todos_after_deletion_length = len(authenticated_client.get("/todos").json)
-    assert todos_after_deletion_length == original_todos_length
+def test_cannot_delete_non_existent_todo_empty_database(client):
+
+    nonexistant_id = 1
+
+    response = client.delete(f"/todos/{nonexistant_id}")
+
+    if client.authenticated:
+        assert_unsuccessful_response_generic(response, 404, f"Error: Cannot delete todo, no result found for todo ID {nonexistant_id}.")
+    else:
+        assert_unauthenticated_response(response)
 
 
-def test_cannot_use_invalid_route_parameter_type(authenticated_client):
-    response = authenticated_client.delete("/todos/a")
-    assert response.status_code == 400
-    assert response.json == "Error: ID route parameter must be an integer."
+
+
+def test_cannot_delete_non_existent_todo_multiple_todos_in_database(client, multiple_sample_todos):
+
+    nonexistant_id = 4
+
+    response = client.delete(f"/todos/{nonexistant_id}")
+
+    if client.authenticated:
+        assert_unsuccessful_response_generic(response, 404, f"Error: Cannot delete todo, no result found for todo ID {nonexistant_id}.")
+    else:
+        assert_unauthenticated_response(response)
+
+
+def test_cannot_use_invalid_route_parameter_type(client):
+
+    nonexistant_id = "a"
+
+    response = client.delete(f"/todos/{nonexistant_id}")
+
+    if client.authenticated:
+        assert_bad_parameter_response(response)
+    else:
+        assert_unauthenticated_response(response)
+
 

@@ -5,41 +5,76 @@ from todoApp.models.Todo import *
 from tests.conftest import *
 
 
-def test_successful_get_todo_when_single_todo_in_database(authenticated_client, create_todo):
-    create_todo()
-    response = authenticated_client.get("/todos/1")
-    assert response.status_code == 200
-    assert response.json is not None
-    assert response.json["title"] == "Test Title"
-    assert response.json["description"] == "Test Description"
+def assert_successful_response_get_todo_by_id(response, original_values, current_user):
+    expected_json = {**original_values, "user_id": current_user.id}
+    expected_json = remove_null_values(expected_json)
+    assert_successful_response_generic(response, 200, expected_json)
+
+def test_successful_get_todo_when_single_todo_in_database(client, create_todo):
+
+    todo = create_todo()
+    original_values = get_original_values(todo)
+
+    response = client.get(f"/todos/{original_values['id']}")
+
+    if client.authenticated:
+        current_user = client.current_user
+        assert_successful_response_get_todo_by_id(response, original_values, current_user)
+        assert_record_unchanged(todo, original_values)
+    else:
+        assert_unauthenticated_response(response)
+        assert_record_unchanged(todo, original_values)
 
 
-def test_successful_get_todo_when_multiple_todos_in_database(authenticated_client, multiple_sample_todos):
-    response = authenticated_client.get("/todos/2")
-    assert response.status_code == 200
-    assert response.json is not None
-    assert response.json["title"] == "Test Title 2"
-    assert response.json.get("description") == "Test Description"
-    response = authenticated_client.get("/todos/3")
-    assert response.status_code == 200
-    assert response.json is not None
-    assert response.json["title"] == "Test Title 3"
-    assert response.json.get("description") is None
+
+@pytest.mark.parametrize("index", [0, 1, 2])
+def test_successful_get_todo_when_multiple_todos_in_database(client, index, multiple_sample_todos):
+
+    todo = multiple_sample_todos[index]
+    original_values = get_original_values(todo)
+
+    response = client.get(f"/todos/{original_values['id']}")
+
+    if client.authenticated:
+        current_user = client.current_user
+        assert_successful_response_get_todo_by_id(response, original_values, current_user)
+        assert_record_unchanged(todo, original_values)
+    else:
+        assert_unauthenticated_response(response)
+        assert_record_unchanged(todo, original_values)
 
 
-def test_todo_not_found_when_database_empty(authenticated_client):
-    response = authenticated_client.get("/todos/1")
-    assert response.status_code == 404
-    assert response.json == "Error: No result found for todo ID 1."
+def test_todo_not_found_when_database_empty(client):
+
+    nonexistant_id = 1
+
+    response = client.get(f"/todos/{nonexistant_id}")
+
+    if client.authenticated:
+        assert_no_result_found_response(response, nonexistant_id)
+    else:
+        assert_unauthenticated_response(response)
 
 
-def test_todo_not_found_when_multiple_todos_in_database(authenticated_client, multiple_sample_todos):
-    response = authenticated_client.get("/todos/4")
-    assert response.status_code == 404
-    assert response.json == "Error: No result found for todo ID 4."
+def test_todo_not_found_when_multiple_todos_in_database(client, multiple_sample_todos):
+
+    nonexistant_id = 4
+
+    response = client.get(f"/todos/{nonexistant_id}")
+
+    if client.authenticated:
+        assert_no_result_found_response(response, nonexistant_id)
+    else:
+        assert_unauthenticated_response(response)
 
 
-def test_cannot_use_invalid_route_parameter_type(authenticated_client):
-    response = authenticated_client.get("/todos/a")
-    assert response.status_code == 400
-    assert response.json == "Error: ID route parameter must be an integer."
+def test_cannot_use_invalid_route_parameter_type(client):
+
+    invalid_id = "a"
+
+    response = client.get(f"/todos/{invalid_id}")
+
+    if client.authenticated:
+        assert_bad_parameter_response(response)
+    else:
+        assert_unauthenticated_response(response)

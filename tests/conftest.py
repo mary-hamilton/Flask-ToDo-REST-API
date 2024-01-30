@@ -19,7 +19,9 @@ def app():
 
 @pytest.fixture()
 def unauthenticated_client(app):
-    return app.test_client()
+    client = app.test_client()
+    client.authenticated = False
+    return client
 
 
 @pytest.fixture()
@@ -29,15 +31,16 @@ def authenticated_client(app, create_user):
     client = app.test_client()
     # is this legit?
     client.current_user = current_user
+    client.authenticated = True
     client.environ_base['HTTP_AUTHORIZATION'] = f"Bearer {token}"
     return client
 
 
 # pytest fixture magic - if this fixture is passed along with a fixture named "authenticated",
 # is will grab the value of authenticated at the point that it is called
-@pytest.fixture()
-def client(authenticated, authenticated_client, unauthenticated_client):
-    if authenticated:
+@pytest.fixture(params=[True, False], ids=["authenticated", "unauthenticated"])
+def client(request, authenticated_client, unauthenticated_client):
+    if request.param:
         return authenticated_client
     else:
         return unauthenticated_client
@@ -54,7 +57,7 @@ def create_todo(authenticated_client):
         todo_to_add = Todo(title=title, user_id=user_id, description=description)
         db.session.add(todo_to_add)
         db.session.commit()
-        added_todo = db.session.scalars(db.select(Todo).filter_by(user_id=user_id).filter_by(id=todo_to_add.id)).first()
+        added_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_to_add.id)).first()
         return added_todo
     return _create_todo
 
@@ -90,16 +93,40 @@ def create_user():
     added_user = db.session.scalars(db.select(User).filter_by(username=username)).first()
     return added_user
 
+def assert_successful_response_generic(response, expected_status_code, expected_json):
+    assert response.status_code == expected_status_code
+    assert response.json == expected_json
 
-# parameterized fixture; passing this fixture to test will run test for each param value
-@pytest.fixture(params=[True, False], ids=["authenticated", "unauthenticated"])
-def authenticated(request):
-    return request.param
-
-def assert_unsuccessful_response(response, expected_response_code, error_message):
-    assert response.status_code == expected_response_code
+def assert_unsuccessful_response_generic(response, expected_status_code, error_message):
+    assert response.status_code == expected_status_code
     assert error_message in response.json
 
 
+def assert_no_result_found_response(response, nonexistant_id):
+    not_found_message = f"Error: No result found for todo ID {nonexistant_id}."
+    assert_unsuccessful_response_generic(response, 404, not_found_message)
+
+
+def assert_bad_parameter_response(response):
+    bad_parameter_message = "Error: ID route parameter must be an integer."
+    assert_successful_response_generic(response, 400, bad_parameter_message)
+
 def assert_unauthenticated_response(response):
-    assert_unsuccessful_response(response, 401, MISSING_TOKEN_ERROR)
+    assert_unsuccessful_response_generic(response, 401, MISSING_TOKEN_ERROR)
+
+
+def get_original_values(todo):
+    return {"title": todo.title, "description": todo.description, "id": todo.id}
+
+def remove_null_values(dict):
+    dict_to_edit = dict.copy()
+    none_values = [key for key, value in dict_to_edit.items() if value is None]
+    for key in none_values:
+        del dict_to_edit[key]
+    return dict_to_edit
+
+
+def assert_record_unchanged(todo, original_values):
+    # original values unedited
+    for key, value in original_values.items():
+        assert getattr(todo, key) == value

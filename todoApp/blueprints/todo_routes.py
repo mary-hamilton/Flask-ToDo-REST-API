@@ -89,6 +89,9 @@ def edit_todo(current_user, todo_id):
         validate_todo_route_param(todo_id)
         todo_to_edit = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=todo_id)).one()
         data = request.get_json()
+        # Hacky, change this
+        if "id" in data and data.get("id") != todo_id:
+            raise ValidationException("Todo IDs cannot be edited")
 
         # this method of updating assumes that client will either send back the original data unaltered for any
         # attribute they do not want to edit, or they will not send that attribute at all: any attribute that is
@@ -109,6 +112,6 @@ def edit_todo(current_user, todo_id):
     except ValidationException as error:
         return jsonify(f"Error: {error}."), 400
     except NoResultFound:
-        error = f"Cannot edit todo, no result found for todo ID {todo_id}"
+        error = f"No result found for todo ID {todo_id}"
         return jsonify(f"Error: {error}."), 404
 

@@ -2,8 +2,6 @@ import copy
 
 import pytest
 
-from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import make_transient
 
 from todoApp.models.Todo import *
 from tests.conftest import *
@@ -11,11 +9,9 @@ from tests.conftest import *
 EDITED_DATA = {"title": "Edited Todo", "description": "Edited Description"}
 
 
-def get_original_values(todo):
-    return {"title": todo.title, "description": todo.description}
-
-
 def assert_record_edited(todo, original_values, edited_data):
+    # id should never change
+    assert todo.id == original_values["id"]
     for key, value in original_values.items():
         # original data unaltered if no new value set
         if key not in edited_data.keys():
@@ -25,23 +21,19 @@ def assert_record_edited(todo, original_values, edited_data):
             assert getattr(todo, key) == edited_data[key]
 
 
-def assert_record_not_edited(todo, original_values):
-    # original values unedited
-    for key, value in original_values.items():
-        assert getattr(todo, key) == value
 
 
 
-def assert_succesful_response_edit_todo(response, original_values, edited_data, current_user, original_id):
-    assert response.status_code == 200
+def assert_successful_response_edit_todo(response, original_values, edited_data, current_user):
     # expected response is original data overwritten with any values sent in edited data
-    expected_response = original_values.copy()
-    expected_response.update(edited_data)
+    expected_values = original_values.copy()
+    expected_values.update(edited_data)
+    # We always explicitly expect to receive the original ID
+    expected_values["id"] = original_values["id"]
     # do not return none values
-    none_values = [key for key, value in expected_response.items() if value is None]
-    for key in none_values:
-        del expected_response[key]
-    assert response.json == {**expected_response, "id": original_id, "user_id": current_user.id}
+    expected_values = remove_null_values(expected_values)
+    expected_response = {**expected_values, "user_id": current_user.id}
+    assert_successful_response_generic(response, 200, expected_response)
 
 
 def assert_unsuccessful_response_edit_todo(response, expected_status_code, error_message):
@@ -49,141 +41,146 @@ def assert_unsuccessful_response_edit_todo(response, expected_status_code, error
     assert error_message in response.json
 
 
-def test_successful_edit_todo_single_todo_in_database(authenticated_client, create_todo):
-    current_user = authenticated_client.current_user
+@pytest.mark.parametrize(
+    "edited_data",
+    [
+        pytest.param(EDITED_DATA,
+                     id="title_and_description"
+                     ),
+        pytest.param({"title": "Edited Title"},
+                     id="description_field_not_present"
+                     ),
+        pytest.param({"title": "Edited Title", "description": None},
+                     id="description_field_null"
+                     )
+
+    ]
+)
+def test_successful_edit_todo_single_todo_in_database(client, edited_data, create_todo):
+
     todo = create_todo()
     original_values = get_original_values(todo)
-    original_id = todo.id
-    response = authenticated_client.patch(f"/todos/{original_id}", json=EDITED_DATA)
-    assert_record_edited(todo, original_values, EDITED_DATA)
-    assert_succesful_response_edit_todo(response, original_values, EDITED_DATA, current_user, original_id)
 
+    response = client.patch(f"/todos/{original_values['id']}", json=edited_data)
 
-def test_successful_edit_todo_single_todo_in_database_field_not_present(authenticated_client, create_todo):
-    edited_data_no_description = {"title": "Edited Title"}
-    current_user = authenticated_client.current_user
-    todo = create_todo()
-    original_values = get_original_values(todo)
-    original_id = todo.id
-    response = authenticated_client.patch(f"/todos/{original_id}", json=edited_data_no_description)
-    assert_record_edited(todo, original_values, edited_data_no_description)
-    assert_succesful_response_edit_todo(response, original_values, edited_data_no_description, current_user, original_id)
-
-
-def test_successful_edit_todo_single_todo_in_database_null_field(authenticated_client, create_todo):
-    edited_data_null_description = {"title": "Edited Title", "description": None}
-    current_user = authenticated_client.current_user
-    todo = create_todo()
-    original_values = get_original_values(todo)
-    original_id = todo.id
-    response = authenticated_client.patch(f"/todos/{original_id}", json=edited_data_null_description)
-    assert_record_edited(todo, original_values, edited_data_null_description)
-    assert_succesful_response_edit_todo(response, original_values, edited_data_null_description, current_user, original_id)
+    if client.authenticated:
+        current_user = client.current_user
+        assert_record_edited(todo, original_values, edited_data)
+        assert_successful_response_edit_todo(response, original_values, edited_data, current_user)
+    else:
+        assert_record_unchanged(todo, original_values)
+        assert_unauthenticated_response(response)
 
 
 @pytest.mark.parametrize("todo_index", [0, 1, 2])
-def test_successful_edit_todo_multiple_todos_in_database(authenticated, authenticated_client, unauthenticated_client, multiple_sample_todos, todo_index):
+def test_successful_edit_todo_multiple_todos_in_database(client, multiple_sample_todos, todo_index):
+
     todo = multiple_sample_todos[todo_index]
     original_values = get_original_values(todo)
     original_id = todo.id
 
-    if authenticated:
-        client = authenticated_client
+    response = client.patch(f"/todos/{original_values['id']}", json=EDITED_DATA)
+
+    if client.authenticated:
         current_user = client.current_user
-    else:
-        client = unauthenticated_client
-
-    response = client.patch(f"/todos/{original_id}", json=EDITED_DATA)
-
-    if authenticated:
-        assert_succesful_response_edit_todo(response, original_values, EDITED_DATA, current_user, original_id)
+        assert_successful_response_edit_todo(response, original_values, EDITED_DATA, current_user)
         for todo in multiple_sample_todos:
             original_values = get_original_values(todo)
             if todo.id == original_id:
                 assert_record_edited(todo, original_values, EDITED_DATA)
             else:
-                assert_record_not_edited(todo, original_values)
+                assert_record_unchanged(todo, original_values)
+    else:
+        for todo in multiple_sample_todos:
+            original_values = get_original_values(todo)
+            assert_record_unchanged(todo, original_values)
+        assert_unauthenticated_response(response)
+
+
+# Trying to alter non existed records
+def test_cannot_edit_non_existent_todo_empty_database(client):
+
+    nonexistant_id = 1
+
+    response = client.patch(f"/todos/{nonexistant_id}")
+
+    if client.authenticated:
+        assert_no_result_found_response(response, nonexistant_id)
     else:
         assert_unauthenticated_response(response)
 
 
-def test_cannot_edit_non_existent_todo_empty_database(authenticated_client):
-    response = authenticated_client.patch("/todos/1")
-    assert response.status_code == 404
-    assert response.json == "Error: Cannot edit todo, no result found for todo ID 1."
+def test_cannot_edit_non_existent_todo_multiple_todos_in_database(client, multiple_sample_todos):
+
+    nonexistant_id = 4
+
+    response = client.patch(f"/todos/{nonexistant_id}")
+
+    if client.authenticated:
+        assert_no_result_found_response(response, nonexistant_id)
+    else:
+        assert_unauthenticated_response(response)
 
 
-def test_cannot_edit_non_existent_todo_multiple_todos_in_database(authenticated_client, multiple_sample_todos):
-    response = authenticated_client.patch("/todos/4")
-    assert response.status_code == 404
-    assert response.json == "Error: Cannot edit todo, no result found for todo ID 4."
+def test_cannot_use_invalid_route_parameter_type(client):
+    invalid_id = "a"
+    response = client.patch(f"/todos/{invalid_id}")
+    if client.authenticated:
+        assert_bad_parameter_response(response)
+    else:
+        assert_unauthenticated_response(response)
 
 
-def test_cannot_use_invalid_route_parameter_type(authenticated_client):
-    response = authenticated_client.delete("/todos/a")
-    assert response.status_code == 400
-    assert response.json == "Error: ID route parameter must be an integer."
+# Parameters check for attempt to edit to either pre-existing on non-existing ID
+@pytest.mark.parametrize("id", [1, 3])
+def test_cannot_manually_change_id_attribute(client, id, multiple_sample_todos):
+    old_id = id
+    new_id = id + 1
+    todo = multiple_sample_todos[old_id - 1]
+    original_values = get_original_values(todo)
+
+    response = client.patch(f"/todos/{old_id}", json={**EDITED_DATA, "id": new_id})
+
+    if client.authenticated:
+        assert_record_unchanged(todo, original_values)
+        assert_unsuccessful_response_generic(response, 400, "Error: Todo IDs cannot be edited.")
+    else:
+        assert_record_unchanged(todo, original_values)
+        assert_unauthenticated_response(response)
 
 
-    # Do I really want to ignore this or should I raise an error?
-def test_ignores_attempt_to_manually_change_id_attribute(authenticated_client, multiple_sample_todos):
-    # ID outside existing ID range
-    original_todo = Todo.query.get(3)
-    make_transient(original_todo)
-    response = authenticated_client.patch("/todos/3", json={**EDITED_DATA, "id": 4})
-    assert response.status_code == 200
-    assert response.json["id"] != 4
-    assert response.json["id"] == original_todo.id
-    # ID within existing ID range
-    original_todo = Todo.query.get(3)
-    make_transient(original_todo)
-    response = authenticated_client.patch("/todos/3", json={**EDITED_DATA, "id": 2})
-    assert response.status_code == 200
-    assert response.json["id"] != 2
-    assert response.json["id"] == original_todo.id
+# Validation errors
+
+@pytest.mark.parametrize(
+    "data, error_message",
+    [
+        pytest.param(
+            {"title": "Test Title"},
+            "Error: Your todo must have a unique title.",
+            id="non_unique_title"
+        ),
+        pytest.param(
+            {"description": "Domestic cats, with their graceful charms and independent natures, "
+                            "enchant as beloved companions. Playful antics and soothing purrs "
+                            "make them universal darlings, seamlessly integrating into diverse "
+                            "households and leaving lasting impressions on hearts."},
+            "Error: Your todo description must be 250 characters or fewer.",
+            id="description_too_long"
+        )
+    ]
+)
+def test_cannot_edit_to_invalid_title_or_description(client, data, error_message, multiple_sample_todos):
+    todo = multiple_sample_todos[1]
+    original_values = get_original_values(todo)
+    original_id = todo.id
+
+    response = client.patch(f"/todos/{original_id}", json=data)
+
+    if client.authenticated:
+        assert_record_unchanged(todo, original_values)
+        assert_unsuccessful_response_generic(response, 400, error_message)
+    else:
+        assert_record_unchanged(todo, original_values)
+        assert_unauthenticated_response(response)
 
 
-def test_cannot_edit_title_to_already_existing_title(authenticated_client, multiple_sample_todos):
-    original_todo = db.session.scalars(db.select(Todo).filter_by(id=2)).one()
-    make_transient(original_todo)
-    response = authenticated_client.patch("/todos/2", json={"title": "Test Title", "description": "Test Description"})
-    assert response.status_code == 400
-    assert response.json == "Error: Your todo must have a unique title."
-    edited_todo = db.session.scalars(db.select(Todo).filter_by(id=2)).one()
-    make_transient(edited_todo)
-    assert edited_todo.title != "Test Title"
-    assert original_todo.title == edited_todo.title
-    assert edited_todo.title != "Test Description"
-    assert original_todo.description == edited_todo.description
-
-
-def test_absent_request_attribute_does_not_alter_stored_data(authenticated_client, multiple_sample_todos):
-    original_todo = Todo.query.get(2)
-    make_transient(original_todo)
-    assert original_todo.description is not None
-    response = authenticated_client.patch("/todos/2", json={"title": "Edited title"})
-    assert response.status_code == 200
-    assert response.json["description"] == original_todo.description
-
-
-def test_null_request_attribute_does_alter_stored_data(authenticated_client, multiple_sample_todos):
-    original_todo = Todo.query.get(2)
-    make_transient(original_todo)
-    assert original_todo.description is not None
-    response = authenticated_client.patch("/todos/2", json={"title": "Edited title", "description": None})
-    assert response.status_code == 200
-    assert response.json.get("description") != original_todo.description
-    assert response.json.get("description") is None
-
-
-def test_cannot_edit_description_to_be_over_250_characters(authenticated_client, multiple_sample_todos):
-    original_todo = Todo.query.get(1)
-    make_transient(original_todo)
-    response = authenticated_client.patch("/todos/1", json={"description": "Domestic cats, with their graceful charms and independent natures, "
-                                                  "enchant as beloved companions. Playful antics and soothing purrs "
-                                                  "make them universal darlings, seamlessly integrating into diverse "
-                                                  "households and leaving lasting impressions on hearts."})
-    assert response.status_code == 400
-    edited_todo = Todo.query.get(1)
-    assert edited_todo.description == original_todo.description
-    assert response.json == "Error: Your todo description must be 250 characters or fewer."
