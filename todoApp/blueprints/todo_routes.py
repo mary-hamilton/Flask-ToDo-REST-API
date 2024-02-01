@@ -44,6 +44,7 @@ def add_todo(current_user):
         return jsonify(f"Error: {error}."), 400
 
 
+
 @todos.get('/todos')
 @require_token
 def get_all_todos(current_user):

@@ -2,7 +2,7 @@ import jwt
 import pytest
 from flask import current_app
 
-from tests.conftest import authenticated_client, unauthenticated_client, app, create_user_flex
+from tests.conftest import not_logged_in_client, app, create_user_flex
 from todoApp import db
 from todoApp.models.User import User
 
@@ -11,8 +11,8 @@ SAMPLE_SIGNUP_DATA = {"first_name": "Steven", "last_name": "Puff", "username": "
 INVALID_PASSWORD_STRING_EXCEPTION = "Password must contain at least one capital letter and at least one digit and must not contain spaces"
 
 
-def test_successful_signup(unauthenticated_client):
-    response = unauthenticated_client.post("/signup", json=SAMPLE_SIGNUP_DATA)
+def test_successful_signup(not_logged_in_client):
+    response = not_logged_in_client.post("/signup", json=SAMPLE_SIGNUP_DATA)
     assert response is not None
     assert response.status_code == 201
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
@@ -30,99 +30,99 @@ def test_successful_signup(unauthenticated_client):
     assert jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])["sub"] == public_id
 
 
-def test_username_already_taken(unauthenticated_client, create_user_flex):
+def test_username_already_taken(not_logged_in_client, create_user_flex):
     create_user_flex(username="steviep")
-    response = unauthenticated_client.post("/signup", json=SAMPLE_SIGNUP_DATA)
+    response = not_logged_in_client.post("/signup", json=SAMPLE_SIGNUP_DATA)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=2)).first()
     assert added_user is None
     assert response.json == "Error: Username is already taken."
 
 
-def test_non_matching_passwords(unauthenticated_client):
+def test_non_matching_passwords(not_logged_in_client):
     bad_password_data = {**SAMPLE_SIGNUP_DATA, "confirm_password": "Password1234"}
-    response = unauthenticated_client.post("/signup", json=bad_password_data)
+    response = not_logged_in_client.post("/signup", json=bad_password_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == "Error: Passwords must match."
 
 
-def test_bad_password_length(unauthenticated_client):
+def test_bad_password_length(not_logged_in_client):
     bad_password_data = {**SAMPLE_SIGNUP_DATA, "password_plaintext": "Pass123", "confirm_password": "Pass123"}
-    response = unauthenticated_client.post("/signup", json=bad_password_data)
+    response = not_logged_in_client.post("/signup", json=bad_password_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == "Error: Password must be at least 8 characters long."
 
 
-def test_bad_password_no_digit(unauthenticated_client):
+def test_bad_password_no_digit(not_logged_in_client):
     bad_password_data = {**SAMPLE_SIGNUP_DATA, "password_plaintext": "Password", "confirm_password": "Password"}
-    response = unauthenticated_client.post("/signup", json=bad_password_data)
+    response = not_logged_in_client.post("/signup", json=bad_password_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == f"Error: {INVALID_PASSWORD_STRING_EXCEPTION}."
 
 
-def test_bad_password_no_capital(unauthenticated_client):
+def test_bad_password_no_capital(not_logged_in_client):
     bad_password_data = {**SAMPLE_SIGNUP_DATA, "password_plaintext": "password123", "confirm_password": "password123"}
-    response = unauthenticated_client.post("/signup", json=bad_password_data)
+    response = not_logged_in_client.post("/signup", json=bad_password_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == f"Error: {INVALID_PASSWORD_STRING_EXCEPTION}."
 
 
-def test_bad_password_spaces(unauthenticated_client):
+def test_bad_password_spaces(not_logged_in_client):
     bad_password_data = {**SAMPLE_SIGNUP_DATA, "password_plaintext": "Password 123", "confirm_password": "Password 123"}
-    response = unauthenticated_client.post("/signup", json=bad_password_data)
+    response = not_logged_in_client.post("/signup", json=bad_password_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == f"Error: {INVALID_PASSWORD_STRING_EXCEPTION}."
 
 
-def test_no_username(unauthenticated_client):
+def test_no_username(not_logged_in_client):
     bad_data = {**SAMPLE_SIGNUP_DATA, "username": None}
-    response = unauthenticated_client.post("/signup", json=bad_data)
+    response = not_logged_in_client.post("/signup", json=bad_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == "Error: Your user needs a username."
 
 
-def test_no_first_name(unauthenticated_client):
+def test_no_first_name(not_logged_in_client):
     bad_data = {**SAMPLE_SIGNUP_DATA, "first_name": None}
-    response = unauthenticated_client.post("/signup", json=bad_data)
+    response = not_logged_in_client.post("/signup", json=bad_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == "Error: Your user needs a first name."
 
 
-def test_no_last_name(unauthenticated_client):
+def test_no_last_name(not_logged_in_client):
     bad_data = {**SAMPLE_SIGNUP_DATA, "last_name": None}
-    response = unauthenticated_client.post("/signup", json=bad_data)
+    response = not_logged_in_client.post("/signup", json=bad_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == "Error: Your user needs a last name."
 
 
-def test_no_password(unauthenticated_client):
+def test_no_password(not_logged_in_client):
     bad_data = {**SAMPLE_SIGNUP_DATA, "password_plaintext": None}
-    response = unauthenticated_client.post("/signup", json=bad_data)
+    response = not_logged_in_client.post("/signup", json=bad_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None
     assert response.json == "Error: Your user needs a password."
 
 
-def test_no_confirm_password(unauthenticated_client):
+def test_no_confirm_password(not_logged_in_client):
     bad_data = {**SAMPLE_SIGNUP_DATA, "confirm_password": None}
-    response = unauthenticated_client.post("/signup", json=bad_data)
+    response = not_logged_in_client.post("/signup", json=bad_data)
     assert response.status_code == 400
     added_user = db.session.scalars(db.select(User).filter_by(id=1)).first()
     assert added_user is None

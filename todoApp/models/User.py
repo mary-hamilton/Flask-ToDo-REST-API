@@ -18,7 +18,7 @@ class User(db.Model):
     last_name: Mapped[str] = db.mapped_column(db.String(50))
     username: Mapped[str] = db.mapped_column(db.String(50), unique=True)
     _password: Mapped[str] = db.mapped_column(db.String(128))
-    todos: Mapped[List[Todo]] = db.relationship(backref="user")
+    todos: Mapped[List["Todo"]] = db.relationship(back_populates="user", cascade="all, delete")
 
     def __init__(self, first_name, last_name, username, password_plaintext):
         self.public_id = str(uuid.uuid4())

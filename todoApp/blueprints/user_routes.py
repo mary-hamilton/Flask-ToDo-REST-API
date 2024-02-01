@@ -7,6 +7,7 @@ import jwt
 from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy.exc import NoResultFound
 
+from todoApp.exceptions.authentication_exception import AuthenticationException
 from todoApp.exceptions.validation_exception import ValidationException
 from todoApp.extensions.db import db
 from todoApp.models.User import User, serialize_user
@@ -14,31 +15,42 @@ from todoApp.models.User import User, serialize_user
 users = Blueprint('users', __name__)
 
 
-#TODO need to add exception handling for all jwt methods
 def make_token(public_user_id):
     payload = {"sub": public_user_id, "iat": datetime.utcnow(), "exp": datetime.utcnow() + timedelta(hours=2)}
     return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm="HS256")
 
 
 def decode_token(token):
-    payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
-    return payload["sub"]
+    try:
+        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
+        return payload["sub"]
+    # Dealing with straight-up bad tokens here
+    except jwt.ExpiredSignatureError:
+        raise AuthenticationException("Token has expired")
+    except jwt.InvalidTokenError:
+        raise AuthenticationException("Invalid token")
+
 
 
 def require_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
-        raw_token = request.headers.get('Authorization')
-        if raw_token:
+        try:
+            raw_token = request.headers.get('Authorization')
+            if not raw_token:
+                raise AuthenticationException("Token is missing")
             token = raw_token.replace('Bearer ', '')
-        if not token:
-            return jsonify("Error: Token is missing"), 401
-        public_user_id = decode_token(token)
-        current_user = db.session.scalars(db.select(User).filter_by(public_id=public_user_id)).first()
-        if not current_user:
-            raise NoResultFound
-        return f(current_user, *args, **kwargs)
+            public_user_id = decode_token(token)
+            current_user = db.session.scalars(db.select(User).filter_by(public_id=public_user_id)).first()
+            if not current_user:
+                raise NoResultFound("User not found")
+            return f(current_user, *args, **kwargs)
+        except AuthenticationException as exception_message:
+            error = exception_message
+            return jsonify(f"Error: {error}."), 401
+        except NoResultFound as exception_message:
+            error = exception_message
+            return jsonify(f"Error: {error}."), 404
     return decorated
 
 

@@ -1,4 +1,8 @@
+from datetime import datetime, timedelta
+
+import jwt
 import pytest
+from flask import current_app
 
 from todoApp import Todo
 from todoApp import create_app
@@ -9,6 +13,8 @@ from todoApp.models.User import User
 
 
 MISSING_TOKEN_ERROR = "Error: Token is missing"
+EXPIRED_TOKEN_ERROR = "Error: Token has expired."
+INVALID_TOKEN_ERROR = "Error: Invalid token."
 
 @pytest.fixture()
 def app():
@@ -18,9 +24,58 @@ def app():
 
 
 @pytest.fixture()
-def unauthenticated_client(app):
+def not_logged_in_client(app):
     client = app.test_client()
     client.authenticated = False
+    client.problem = "not_logged_in"
+    return client
+
+
+@pytest.fixture()
+def expired_token_client(app, create_user):
+
+    current_user = create_user
+    current_time = datetime.utcnow()
+    expiry_time = datetime.utcnow()
+
+    token = make_test_token(current_user.public_id, current_time, expiry_time)
+    client = app.test_client()
+    client.current_user = current_user
+    client.authenticated = False
+    client.problem = "expired_token"
+    client.environ_base['HTTP_AUTHORIZATION'] = f"Bearer {token}"
+    return client
+
+
+@pytest.fixture()
+def invalid_token_client(app, create_user):
+
+    current_user = create_user
+    current_time = datetime.utcnow() + timedelta(minutes=5)
+    expiry_time = datetime.utcnow()
+
+    token = make_test_token(current_user.public_id, current_time, expiry_time)
+    client = app.test_client()
+    client.current_user = current_user
+    client.authenticated = False
+    client.problem = "invalid_token"
+    client.environ_base['HTTP_AUTHORIZATION'] = f"Bearer {token}"
+    return client
+
+
+@pytest.fixture()
+def deleted_user_client(app, create_user):
+    # Make user and token for user
+    current_user = create_user
+    token = make_token(current_user.public_id)
+    # Delete user
+    db.session.delete(current_user)
+    db.session.commit()
+
+    client = app.test_client()
+    client.authenticated = False
+    client.problem = "deleted_user"
+    client.environ_base['HTTP_AUTHORIZATION'] = f"Bearer {token}"
     return client
 
 
@@ -36,12 +91,16 @@ def authenticated_client(app, create_user):
     return client
 
 
-@pytest.fixture(params=[True, False], ids=["authenticated", "unauthenticated"])
-def client(request, authenticated_client, unauthenticated_client):
-    if request.param:
-        return authenticated_client
-    else:
-        return unauthenticated_client
+@pytest.fixture(params=["authenticated", "not_logged_in", "expired_token", "invalid_token"])
+def client(request):
+    if request.param == "authenticated":
+        return request.getfixturevalue("authenticated_client")
+    if request.param == "not_logged_in":
+        return request.getfixturevalue("not_logged_in_client")
+    if request.param == "expired_token":
+        return request.getfixturevalue("expired_token_client")
+    if request.param == "invalid_token":
+        return request.getfixturevalue("invalid_token_client")
 
 
 @pytest.fixture
@@ -78,6 +137,7 @@ def create_user_flex():
         return added_user
     return _create_user
 
+
 @pytest.fixture
 def create_user():
     first_name = "Jan"
@@ -91,9 +151,16 @@ def create_user():
     added_user = db.session.scalars(db.select(User).filter_by(username=username)).first()
     return added_user
 
+
+def make_test_token(public_user_id, current_time, expiry_time):
+    payload = {"sub": public_user_id, "iat": current_time, "exp": expiry_time}
+    return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm="HS256")
+
+
 def assert_successful_response_generic(response, expected_status_code, expected_json):
     assert response.status_code == expected_status_code
     assert response.json == expected_json
+
 
 def assert_unsuccessful_response_generic(response, expected_status_code, error_message):
     assert response.status_code == expected_status_code
@@ -109,12 +176,20 @@ def assert_bad_parameter_response(response):
     bad_parameter_message = "Error: ID route parameter must be an integer."
     assert_successful_response_generic(response, 400, bad_parameter_message)
 
-def assert_unauthenticated_response(response):
-    assert_unsuccessful_response_generic(response, 401, MISSING_TOKEN_ERROR)
+
+def assert_unauthenticated_response(client, response):
+    if client.problem == "not_logged_in":
+        assert_unsuccessful_response_generic(response, 401, MISSING_TOKEN_ERROR)
+    if client.problem == "expired_token":
+        assert_unsuccessful_response_generic(response, 401, EXPIRED_TOKEN_ERROR)
+    if client.problem == "invalid_token":
+        assert_unsuccessful_response_generic(response, 401, INVALID_TOKEN_ERROR)
 
 
-def get_original_values(todo):
+def get_original_values_todo(todo):
+    # Add user_id to this?
     return {"title": todo.title, "description": todo.description, "id": todo.id}
+
 
 def remove_null_values(dict):
     dict_to_edit = dict.copy()

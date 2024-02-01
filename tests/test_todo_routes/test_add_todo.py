@@ -53,7 +53,7 @@ def test_add_to_empty_database(client, data):
         assert_todo_added_to_database(response, expected_response_data, current_user, expected_id)
     else:
         assert_todo_not_added_to_database(expected_id)
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
 
 
 @pytest.mark.parametrize(
@@ -81,7 +81,7 @@ def test_add_to_populated_database(client, data, multiple_sample_todos):
         assert_todo_added_to_database(response, expected_response_data, current_user, expected_id)
     else:
         assert_todo_not_added_to_database(expected_id)
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
 
 
     # Validation tests
@@ -130,7 +130,7 @@ def test_cannot_add_todo_validation_errors(client, data, error_message):
         assert_unsuccessful_response_generic(response, 400, error_message)
     else:
         assert_todo_not_added_to_database(expected_id)
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
 
 
 
@@ -139,7 +139,7 @@ def test_cannot_add_todo_with_duplicate_title(client, create_todo):
     expected_id = 2
     data = {"title": "Test Title", "description": "Test Description"}
     existing_todo = create_todo(**data)
-    existing_values = get_original_values(existing_todo)
+    existing_values = get_original_values_todo(existing_todo)
 
     response = client.post('/todos', json=data)
 
@@ -149,4 +149,25 @@ def test_cannot_add_todo_with_duplicate_title(client, create_todo):
         assert_unsuccessful_response_generic(response, 400, DUPLICATE_TITLE_ERROR)
     else:
         assert_todo_not_added_to_database(expected_id)
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
+
+
+def test_cannot_add_todo_deleted_user(client):
+
+    expected_id = 1
+    data = {"title": "Test Title", "description": "Test Description"}
+
+    if hasattr(client, "current_user"):
+        user_to_delete = client.current_user
+        db.session.delete(user_to_delete)
+        db.session.commit()
+
+    response = client.post('/todos', json=data)
+
+    if client.authenticated:
+        assert_todo_not_added_to_database(expected_id)
+        assert_unsuccessful_response_generic(response, 404, "Error: User not found.")
+    else:
+        assert_todo_not_added_to_database(expected_id)
+        assert_unauthenticated_response(client, response)
+

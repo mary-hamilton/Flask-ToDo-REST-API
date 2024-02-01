@@ -17,7 +17,7 @@ def assert_successful_response_get_todo_by_id(response, original_values, current
 def test_successful_get_todo_when_single_todo_in_database(client, create_todo):
 
     todo = create_todo()
-    original_values = get_original_values(todo)
+    original_values = get_original_values_todo(todo)
 
     response = client.get(f"/todos/{original_values['id']}")
 
@@ -26,7 +26,7 @@ def test_successful_get_todo_when_single_todo_in_database(client, create_todo):
         assert_successful_response_get_todo_by_id(response, original_values, current_user)
         assert_record_unchanged(todo, original_values)
     else:
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
         assert_record_unchanged(todo, original_values)
 
 
@@ -35,7 +35,7 @@ def test_successful_get_todo_when_single_todo_in_database(client, create_todo):
 def test_successful_get_todo_when_multiple_todos_in_database(client, index, multiple_sample_todos):
 
     todo = multiple_sample_todos[index]
-    original_values = get_original_values(todo)
+    original_values = get_original_values_todo(todo)
 
     response = client.get(f"/todos/{original_values['id']}")
 
@@ -44,7 +44,7 @@ def test_successful_get_todo_when_multiple_todos_in_database(client, index, mult
         assert_successful_response_get_todo_by_id(response, original_values, current_user)
         assert_record_unchanged(todo, original_values)
     else:
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
         assert_record_unchanged(todo, original_values)
 
 
@@ -57,7 +57,7 @@ def test_todo_not_found_when_database_empty(client):
     if client.authenticated:
         assert_no_result_found_response(response, nonexistant_id)
     else:
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
 
 
 def test_todo_not_found_when_multiple_todos_in_database(client, multiple_sample_todos):
@@ -69,7 +69,7 @@ def test_todo_not_found_when_multiple_todos_in_database(client, multiple_sample_
     if client.authenticated:
         assert_no_result_found_response(response, nonexistant_id)
     else:
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
 
 
 def test_cannot_use_invalid_route_parameter_type(client):
@@ -81,4 +81,24 @@ def test_cannot_use_invalid_route_parameter_type(client):
     if client.authenticated:
         assert_bad_parameter_response(response)
     else:
-        assert_unauthenticated_response(response)
+        assert_unauthenticated_response(client, response)
+
+
+def test_cannot_get_todo_deleted_user(client, create_todo):
+
+    todo = create_todo()
+    original_values = get_original_values_todo(todo)
+
+    if hasattr(client, "current_user"):
+        user_to_delete = client.current_user
+        db.session.delete(user_to_delete)
+        db.session.commit()
+
+    response = client.get(f"/todos/{original_values['id']}")
+
+    if client.authenticated:
+        # Deleting user should delete owned todos
+        assert db.session.scalars(db.select(Todo).filter_by(id=original_values['id'])).first() is None
+        assert_unsuccessful_response_generic(response, 404, "Error: User not found.")
+    else:
+        assert_unauthenticated_response(client, response)
