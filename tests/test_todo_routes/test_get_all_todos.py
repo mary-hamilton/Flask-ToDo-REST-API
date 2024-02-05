@@ -66,7 +66,7 @@ def test_cannot_get_all_todos_deleted_user(client, multiple_sample_todos):
     if client.authenticated:
         # Deleting user should delete their todos
         for todo in multiple_sample_todos:
-            assert db.session.scalars(db.select(Todo).filter_by(id=todo.id)).first() is None
+            assert db.session.get(Todo, todo.id) is None
         assert_unsuccessful_response_generic(response, 404, "Error: User not found.")
     else:
         assert_unauthenticated_response(client, response)

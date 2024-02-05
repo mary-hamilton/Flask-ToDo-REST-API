@@ -114,8 +114,8 @@ def create_todo(authenticated_client):
         todo_to_add = Todo(title=title, user_id=user_id, description=description)
         db.session.add(todo_to_add)
         db.session.commit()
-        added_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_to_add.id)).first()
-        return added_todo
+        db.session.refresh(todo_to_add)
+        return todo_to_add
     return _create_todo
 
 
@@ -133,8 +133,8 @@ def create_user_flex():
         user_to_add = User(first_name=first_name, last_name=last_name, username=username, password_plaintext=password_plaintext)
         db.session.add(user_to_add)
         db.session.commit()
-        added_user = db.session.scalars(db.select(User).filter_by(username=username)).first()
-        return added_user
+        db.session.refresh(user_to_add)
+        return user_to_add
     return _create_user
 
 
@@ -148,8 +148,8 @@ def create_user():
                        password_plaintext=password_plaintext)
     db.session.add(user_to_add)
     db.session.commit()
-    added_user = db.session.scalars(db.select(User).filter_by(username=username)).first()
-    return added_user
+    db.session.refresh(user_to_add)
+    return user_to_add
 
 
 def make_test_token(public_user_id, current_time, expiry_time):

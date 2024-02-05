@@ -7,7 +7,7 @@ from tests.conftest import *
 
 
 def assert_record_deleted(todo_id):
-    assert db.session.scalars(db.select(Todo).filter_by(id=todo_id)).first() is None
+    assert db.session.get(Todo, todo_id) is None
 
 
 def assert_successful_response_delete_todo(response):

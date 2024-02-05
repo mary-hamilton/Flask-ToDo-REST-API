@@ -34,10 +34,10 @@ def add_todo(current_user):
         db.session.commit()
 
         # actual magic here
-        # gets todo_to_add out of the identity map for the previous session and then refreshes it with the current
-        # values from the db - so now our data is back and we have an id!
-        added_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_to_add.id)).one()
-        return jsonify(serialize_todo(added_todo)), 201
+        # gets todo_to_add out of the identity map for the session and then refreshes it with the current
+        # values from the db
+        db.session.refresh(todo_to_add)
+        return jsonify(serialize_todo(todo_to_add)), 201
 
     except ValidationException as exception_message:
         error = exception_message
@@ -108,7 +108,7 @@ def edit_todo(current_user, todo_id):
         if "description" in data:
             setattr(todo_to_edit, "description", data.get("description"))
         db.session.commit()
-        edited_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
+        edited_todo = db.session.get(Todo, todo_id)
         return jsonify(serialize_todo(edited_todo))
     except ValidationException as error:
         return jsonify(f"Error: {error}."), 400

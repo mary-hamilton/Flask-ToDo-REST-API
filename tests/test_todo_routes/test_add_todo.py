@@ -8,8 +8,8 @@ MISSING_TITLE_ERROR = "Error: Your todo needs a title."
 DUPLICATE_TITLE_ERROR = "Error: Your todo title must be unique."
 
 
-def assert_todo_added_to_database(response, expected_response_data, current_user, todo_id):
-    todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, id=todo_id)).first()
+def assert_todo_added_to_database(response, expected_response_data, todo_id):
+    todo = db.session.get(Todo, todo_id)
     assert todo is not None
     for key, value in expected_response_data.items():
         assert getattr(todo, key) == value
@@ -18,8 +18,7 @@ def assert_todo_added_to_database(response, expected_response_data, current_user
 
 
 def assert_todo_not_added_to_database(expected_id):
-    added_todo = db.session.scalars(
-        db.select(Todo).filter_by(id=expected_id)).first()
+    added_todo = db.session.get(Todo, expected_id)
     assert added_todo is None
 
 
@@ -50,7 +49,7 @@ def test_add_to_empty_database(client, data):
         current_user = client.current_user
         expected_response_data = {**data, "user_id": current_user.id, "id": expected_id}
         assert_successful_response_add_todo(response, expected_response_data)
-        assert_todo_added_to_database(response, expected_response_data, current_user, expected_id)
+        assert_todo_added_to_database(response, expected_response_data, expected_id)
     else:
         assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(client, response)
@@ -78,7 +77,7 @@ def test_add_to_populated_database(client, data, multiple_sample_todos):
         current_user = client.current_user
         expected_response_data = {**data, "user_id": current_user.id, "id": expected_id}
         assert_successful_response_add_todo(response, expected_response_data)
-        assert_todo_added_to_database(response, expected_response_data, current_user, expected_id)
+        assert_todo_added_to_database(response, expected_response_data, expected_id)
     else:
         assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(client, response)

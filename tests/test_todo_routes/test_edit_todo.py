@@ -97,7 +97,7 @@ def test_successful_edit_todo_multiple_todos_in_database(client, multiple_sample
         assert_unauthenticated_response(client, response)
 
 
-# Trying to alter non existed records
+# Trying to alter non-existent records
 def test_cannot_edit_non_existent_todo_empty_database(client):
 
     nonexistant_id = 1
