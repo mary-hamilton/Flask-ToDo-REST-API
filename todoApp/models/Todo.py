@@ -10,7 +10,7 @@ from ..utils.serialize_function import serialize_model
 
 class Todo(db.Model):
     id: Mapped[int] = db.mapped_column(primary_key=True)
-    title: Mapped[str] = db.mapped_column(db.String(40), unique=True)
+    title: Mapped[str] = db.mapped_column(db.String(40))
     description: Mapped[Optional[str]] = db.mapped_column(db.String(250))
     user_id: Mapped[int] = db.mapped_column(ForeignKey('user.id'))
     user: Mapped["User"] = db.relationship(back_populates="todos")

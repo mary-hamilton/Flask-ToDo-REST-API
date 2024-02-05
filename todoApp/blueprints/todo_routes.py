@@ -21,7 +21,7 @@ def add_todo(current_user):
     title, description = data.get('title'), data.get('description')
 
     try:
-        if db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(title=title)).first():
+        if db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, title=title)).first():
             raise ValidationException("Your todo title must be unique")
 
         # create instance of To*do model
@@ -36,7 +36,7 @@ def add_todo(current_user):
         # actual magic here
         # gets todo_to_add out of the identity map for the previous session and then refreshes it with the current
         # values from the db - so now our data is back and we have an id!
-        added_todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=todo_to_add.id)).one()
+        added_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_to_add.id)).one()
         return jsonify(serialize_todo(added_todo)), 201
 
     except ValidationException as exception_message:
@@ -58,7 +58,7 @@ def get_all_todos(current_user):
 def get_todo(current_user, todo_id):
     try:
         validate_todo_route_param(todo_id)
-        found_todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=todo_id)).one()
+        found_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
         return jsonify(serialize_todo(found_todo))
     except ValidationException as error:
         return jsonify(f"Error: {error}."), 400
@@ -72,7 +72,7 @@ def get_todo(current_user, todo_id):
 def delete_todo(current_user, todo_id):
     try:
         validate_todo_route_param(todo_id)
-        todo_to_delete = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=todo_id)).one()
+        todo_to_delete = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
         db.session.delete(todo_to_delete)
         db.session.commit()
         return jsonify("Todo successfully deleted.")
@@ -88,7 +88,7 @@ def delete_todo(current_user, todo_id):
 def edit_todo(current_user, todo_id):
     try:
         validate_todo_route_param(todo_id)
-        todo_to_edit = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=todo_id)).one()
+        todo_to_edit = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
         data = request.get_json()
         # Hacky, change this
         if "id" in data and data.get("id") != todo_id:
@@ -102,13 +102,13 @@ def edit_todo(current_user, todo_id):
 
         # Explicit attribute names rather than a loop to ensure data integrity
         if "title" in data:
-            if todo_to_edit.title != data.get("title") and db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(title=data.get("title"))).first():
+            if todo_to_edit.title != data.get("title") and db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, title=data.get("title"))).first():
                 raise ValidationException('Your todo must have a unique title')
             setattr(todo_to_edit, "title", data.get("title"))
         if "description" in data:
             setattr(todo_to_edit, "description", data.get("description"))
         db.session.commit()
-        edited_todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=todo_id)).one()
+        edited_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
         return jsonify(serialize_todo(edited_todo))
     except ValidationException as error:
         return jsonify(f"Error: {error}."), 400

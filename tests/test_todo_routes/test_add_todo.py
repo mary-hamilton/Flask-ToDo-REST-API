@@ -9,7 +9,7 @@ DUPLICATE_TITLE_ERROR = "Error: Your todo title must be unique."
 
 
 def assert_todo_added_to_database(response, expected_response_data, current_user, todo_id):
-    todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id).filter_by(id=todo_id)).first()
+    todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, id=todo_id)).first()
     assert todo is not None
     for key, value in expected_response_data.items():
         assert getattr(todo, key) == value
