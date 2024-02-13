@@ -1,5 +1,6 @@
 import pytest
 
+from tests.test_todo_routes.test_toggle_parent import assert_current_parent_relationship
 from todoApp.models.Todo import *
 from tests.conftest import *
 
@@ -8,6 +9,7 @@ MISSING_TITLE_ERROR = "Error: Your todo needs a title."
 DUPLICATE_TITLE_ERROR = "Error: Your todo title must be unique."
 
 
+# CHANGE THIS
 def assert_todo_added_to_database(response, expected_response_data, todo_id):
     todo = db.session.get(Todo, todo_id)
     assert todo is not None
@@ -81,6 +83,29 @@ def test_add_to_populated_database(client, data, multiple_sample_todos):
     else:
         assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(client, response)
+
+
+def test_add_with_parent_todo(client, create_todo):
+
+    expected_id = 2
+    parent_todo = create_todo(title="Parent Todo")
+    data = {"title": "Child Todo", "parent_id": parent_todo.id}
+
+    response = client.post('/todos', json=data)
+
+    if client.authenticated:
+        current_user = client.current_user
+        added_todo = db.session.get(Todo, expected_id)
+        expected_response_data = {**data, "user_id": current_user.id, "id": expected_id, "parent_id": parent_todo.id}
+        assert_successful_response_add_todo(response, expected_response_data)
+        assert_todo_added_to_database(response, expected_response_data, expected_id)
+        assert_current_parent_relationship(added_todo, parent_todo)
+    else:
+        assert_todo_not_added_to_database(expected_id)
+        assert_unauthenticated_response(client, response)
+
+
+
 
 
     # Validation tests

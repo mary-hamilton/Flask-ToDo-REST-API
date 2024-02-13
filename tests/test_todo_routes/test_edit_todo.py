@@ -26,7 +26,7 @@ def assert_record_edited(todo, original_values, edited_data):
 
 def assert_successful_response_edit_todo(response, original_values, edited_data, current_user):
     # expected response is original data overwritten with any values sent in edited data
-    expected_values = original_values.copy()
+    expected_values = copy.deepcopy(original_values)
     expected_values.update(edited_data)
     # We always explicitly expect to receive the original ID
     expected_values["id"] = original_values["id"]

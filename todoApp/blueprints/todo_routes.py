@@ -18,14 +18,16 @@ todos = Blueprint('todos', __name__)
 def add_todo(current_user):
     # get relevant data from request
     data = request.get_json()
-    title, description = data.get('title'), data.get('description')
+    title, description, parent_id = data.get('title'), data.get('description'), data.get('parent_id')
 
     try:
-        if db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, title=title)).first():
+        # If am only imposing unique title constraint on top-level parent todos, need to filter this by whether
+        # a parent_id has been sent in the request
+        if parent_id is None and db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, title=title)).first():
             raise ValidationException("Your todo title must be unique")
 
         # create instance of To*do model
-        todo_to_add = Todo(title=title, description=description, user_id=current_user.id)
+        todo_to_add = Todo(title=title, description=description, user_id=current_user.id, parent_id=parent_id)
 
         # add new instance to SQLAlchemy session and schedule it for insertion into db
         db.session.add(todo_to_add)
@@ -48,6 +50,8 @@ def add_todo(current_user):
 @todos.get('/todos')
 @require_token
 def get_all_todos(current_user):
+    # Change so found todos is a list of top-level todos only. Can fetch subtodos from
+    # database on click.
     found_todos = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id)).all()
     serialized_todos = [serialize_todo(found_todo) for found_todo in found_todos]
     return jsonify(serialized_todos)
@@ -56,9 +60,10 @@ def get_all_todos(current_user):
 @todos.get('/todos/<todo_id>')
 @require_token
 def get_todo(current_user, todo_id):
+    # Change to return subtodos?
     try:
         validate_todo_route_param(todo_id)
-        found_todo = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
+        found_todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
         return jsonify(serialize_todo(found_todo))
     except ValidationException as error:
         return jsonify(f"Error: {error}."), 400
@@ -72,7 +77,7 @@ def get_todo(current_user, todo_id):
 def delete_todo(current_user, todo_id):
     try:
         validate_todo_route_param(todo_id)
-        todo_to_delete = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
+        todo_to_delete = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
         db.session.delete(todo_to_delete)
         db.session.commit()
         return jsonify("Todo successfully deleted.")
@@ -88,7 +93,7 @@ def delete_todo(current_user, todo_id):
 def edit_todo(current_user, todo_id):
     try:
         validate_todo_route_param(todo_id)
-        todo_to_edit = db.session.scalars(db.select(Todo).filter_by(id=todo_id)).one()
+        todo_to_edit = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
         data = request.get_json()
         # Hacky, change this
         if "id" in data and data.get("id") != todo_id:
@@ -116,3 +121,24 @@ def edit_todo(current_user, todo_id):
         error = f"No result found for todo ID {todo_id}"
         return jsonify(f"Error: {error}."), 404
 
+
+@todos.patch('/todos/<todo_id>/toggle_parent')
+@require_token
+def toggle_parent(current_user, todo_id):
+    data = request.get_json()
+    parent_id_to_add = data.get("parent_id")
+    try:
+        child_todo = db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
+        if parent_id_to_add is not None:
+            if parent_id_to_add == int(todo_id):
+                raise ValidationException('Todo cannot be its own parent')
+            # checking that parent_todo actually exists; throw error if not
+            db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=parent_id_to_add)).one()
+        child_todo.parent_id = parent_id_to_add
+        db.session.commit()
+        updated_child_todo = db.session.get(Todo, todo_id)
+        return jsonify(serialize_todo(updated_child_todo))
+    except ValidationException as error:
+        return jsonify(f"Error: {error}."), 400
+    except NoResultFound:
+        return jsonify(f"Error: Parent or child todo does not exist."), 404

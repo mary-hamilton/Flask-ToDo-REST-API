@@ -2,7 +2,7 @@ from flask import Flask
 
 from .blueprints.user_routes import users
 from .extensions.db import db
-from .models.Todo import Todo
+from .models.Todo import Todo, serialize_todo
 from todoApp.blueprints.todo_routes import todos
 from .config import *
 
@@ -31,4 +31,7 @@ def create_app(config_class=DevelopmentConfig):
     return app
 
 
+todooo = Todo(title='Todo', description='Blah', user_id=2)
 
+print(todooo.children)
+print(todooo.children is None)

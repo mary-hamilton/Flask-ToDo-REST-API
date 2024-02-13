@@ -43,6 +43,33 @@ def test_successful_delete_todo_multiple_todos_in_database(client, multiple_samp
         assert_unauthenticated_response(client, response)
 
 
+def test_successful_delete_todo_also_deletes_child_todos(client, create_todo):
+
+    parent_todo = create_todo(title="Parent Todo")
+    child_todo_1 = create_todo(title="Child Todo 1", parent_id=parent_todo.id)
+    child_todo_2 = create_todo(title="Child Todo 2", parent_id=parent_todo.id)
+    child_todo_3 = create_todo(title="Child Todo 3", parent_id=parent_todo.id)
+    child_todos = [child_todo_1, child_todo_2, child_todo_3]
+
+    parent_original_values = get_original_values_todo(parent_todo)
+    child_original_values = [get_original_values_todo(child_todo) for child_todo in child_todos]
+
+    response = client.delete(f"/todos/{parent_todo.id}")
+
+    if client.authenticated:
+        assert_record_deleted(parent_todo.id)
+        for child_todo in child_todos:
+            assert_record_deleted(child_todo.id)
+        assert_successful_response_delete_todo(response)
+    else:
+        assert_record_unchanged(parent_todo, parent_original_values)
+        for index, child_todo in enumerate(child_todos):
+            assert_record_unchanged(child_todo, child_original_values[index])
+        assert_unauthenticated_response(client, response)
+
+
+
+
 def test_cannot_delete_non_existent_todo_empty_database(client):
 
     nonexistant_id = 1

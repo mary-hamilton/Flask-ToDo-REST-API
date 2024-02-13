@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime, timedelta
 
 import jwt
@@ -108,10 +109,10 @@ def create_todo(authenticated_client):
 
     description_sentinel = object()
 
-    def _create_todo(title='Test Title', user_id=authenticated_client.current_user.id, description=description_sentinel):
+    def _create_todo(title='Test Title', user_id=authenticated_client.current_user.id, description=description_sentinel, parent_id=None):
         if description is description_sentinel:
             description = 'Test Description'
-        todo_to_add = Todo(title=title, user_id=user_id, description=description)
+        todo_to_add = Todo(title=title, user_id=user_id, description=description, parent_id=parent_id)
         db.session.add(todo_to_add)
         db.session.commit()
         db.session.refresh(todo_to_add)
@@ -187,13 +188,18 @@ def assert_unauthenticated_response(client, response):
 
 
 def get_original_values_todo(todo):
-    # Add user_id to this?
-    return {"title": todo.title, "description": todo.description, "id": todo.id}
+    # Should probably change this so we're actually copying the object rather than this dictionary conversion?
+
+    original_values = {"title": todo.title, "description": todo.description, "id": todo.id, "parent_id": todo.parent_id, "user_id": todo.user_id}
+    if todo.children:
+        child_todos = copy.deepcopy(todo.children)
+        original_values["children"] = child_todos
+    return original_values
 
 
 def remove_null_values(dict):
-    dict_to_edit = dict.copy()
-    none_values = [key for key, value in dict_to_edit.items() if value is None]
+    dict_to_edit = copy.deepcopy(dict)
+    none_values = [key for key, value in dict_to_edit.items() if not value]
     for key in none_values:
         del dict_to_edit[key]
     return dict_to_edit
@@ -202,4 +208,8 @@ def remove_null_values(dict):
 def assert_record_unchanged(todo, original_values):
     # original values unedited
     for key, value in original_values.items():
-        assert getattr(todo, key) == value
+        if isinstance(value, list):
+            for index, item in enumerate(value):
+                assert item.id == getattr(todo, key)[index].id
+        else:
+            assert getattr(todo, key) == value

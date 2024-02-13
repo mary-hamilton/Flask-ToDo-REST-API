@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import validates, Mapped
@@ -14,11 +14,29 @@ class Todo(db.Model):
     description: Mapped[Optional[str]] = db.mapped_column(db.String(250))
     user_id: Mapped[int] = db.mapped_column(ForeignKey('user.id'))
     user: Mapped["User"] = db.relationship(back_populates="todos")
+    parent_id: Mapped[Optional[int]] = db.mapped_column(ForeignKey('todo.id'))
+    children: Mapped[Optional[List["Todo"]]] = db.relationship("Todo", cascade="all, delete")
 
-    def __init__(self, title, user_id, description=None):
+    def __init__(self, title, user_id, parent_id=None, description=None):
         self.title = title
         self.description = description
         self.user_id = user_id
+        self.parent_id = parent_id
+
+
+    # Equality method for testing purposes
+    def __eq__(self, other):
+        # Fix this
+        self_public_values = {}
+        other_public_values = {}
+        for key, value in self.__dict__.items():
+            if (not key.startswith("_")):
+                self_public_values[key] = value
+        for key, value in other.__dict__.items():
+            if (not key.startswith("_")):
+                other_public_values[key] = value
+        return self_public_values == other_public_values
+
 
     # <key> parameter is required in validators or they won't work
     @validates('title')
@@ -43,5 +61,7 @@ class Todo(db.Model):
 
 def serialize_todo(todo_to_serialize):
     return serialize_model(todo_to_serialize, Todo)
+
+
 
 
