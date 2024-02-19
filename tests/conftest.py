@@ -10,6 +10,7 @@ from todoApp import create_app
 from todoApp.blueprints.user_routes import make_token
 from todoApp.config import *
 from todoApp.extensions.db import db
+from todoApp.models.Todo import serialize_todo, serialize_todo_with_children
 from todoApp.models.User import User
 
 
@@ -109,10 +110,11 @@ def create_todo(authenticated_client):
 
     description_sentinel = object()
 
-    def _create_todo(title='Test Title', user_id=authenticated_client.current_user.id, description=description_sentinel, parent_id=None):
+    def _create_todo(title='Test Title', user_id=authenticated_client.current_user.id, description=description_sentinel, parent_id=None, checked=False):
         if description is description_sentinel:
             description = 'Test Description'
         todo_to_add = Todo(title=title, user_id=user_id, description=description, parent_id=parent_id)
+        todo_to_add.checked = checked
         db.session.add(todo_to_add)
         db.session.commit()
         db.session.refresh(todo_to_add)
@@ -188,18 +190,25 @@ def assert_unauthenticated_response(client, response):
 
 
 def get_original_values_todo(todo):
-    # Should probably change this so we're actually copying the object rather than this dictionary conversion?
+    db.session.refresh(todo)
+    test_todo = serialize_todo(todo)
 
-    original_values = {"title": todo.title, "description": todo.description, "id": todo.id, "parent_id": todo.parent_id, "user_id": todo.user_id}
+    return test_todo
+
+
+def get_original_values_todo_with_children(todo):
+    # Just do not understand why eager loading won't work here!
+    # db.session.scalars(db.session.query(Todo).options(selectinload(Todo.children)).filter_by(id=todo.id)).one()
+
+    # Infuriating hacky solution
     if todo.children:
-        child_todos = copy.deepcopy(todo.children)
-        original_values["children"] = child_todos
-    return original_values
+        return serialize_todo_with_children(todo)
 
 
 def remove_null_values(dict):
     dict_to_edit = copy.deepcopy(dict)
-    none_values = [key for key, value in dict_to_edit.items() if not value]
+    # Removes empty and None values but not False (to handle .checked)
+    none_values = [key for key, value in dict_to_edit.items() if not value and value is not False]
     for key in none_values:
         del dict_to_edit[key]
     return dict_to_edit
@@ -210,6 +219,6 @@ def assert_record_unchanged(todo, original_values):
     for key, value in original_values.items():
         if isinstance(value, list):
             for index, item in enumerate(value):
-                assert item.id == getattr(todo, key)[index].id
+                assert item["id"] == getattr(todo, key)[index].id
         else:
             assert getattr(todo, key) == value

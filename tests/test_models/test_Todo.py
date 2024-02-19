@@ -1,6 +1,6 @@
 import pytest
 from todoApp.models.Todo import *
-from tests.conftest import app
+from tests.conftest import *
 from todoApp.utils.serialize_function import serialize_model
 
 
@@ -53,11 +53,30 @@ def test_incorrect_description_length(app):
 def test_serialize_function_without_ID(app):
     test_todo = Todo(title="Test Title", description="Test Description", user_id=1)
     serialized_test_todo = serialize_todo(test_todo)
-    assert serialized_test_todo == {"title": "Test Title", "description": "Test Description", "user_id": 1}
+    assert serialized_test_todo == {"title": "Test Title", "description": "Test Description", "user_id": 1, "checked": False}
 
 
 def test_serialize_function_with_ID(app):
     test_todo = Todo(title="Test Title", description="Test Description", user_id=1)
     test_todo.id = 123
     serialized_test_todo = serialize_todo(test_todo)
-    assert serialized_test_todo == {"title": "Test Title", "description": "Test Description", "id": 123, "user_id": 1}
+    assert serialized_test_todo == {"title": "Test Title", "description": "Test Description", "id": 123, "user_id": 1, "checked": False}
+
+
+def test_serialize_function_WITH_CHILDREN_parent_todo(app):
+
+    # Need to manually add an id for the parent and manually add the child to the
+    # parent's children list because the database isn't doing it for us
+    parent_todo = Todo(title="Parent Todo", user_id=1)
+    parent_todo.id = 123
+    child_todo = Todo(title="Child Todo", user_id=1, parent_id=parent_todo.id)
+    parent_todo.children.append(child_todo)
+
+    expected_data_parent = {"title": "Parent Todo", "user_id": 1, "id": 123, "checked": False}
+    expected_data_child = {"title": "Child Todo", "user_id": 1, "parent_id": parent_todo.id, "checked": False}
+
+    serialized_todo_with_children = serialize_todo_with_children(parent_todo)
+
+    assert serialized_todo_with_children == {**expected_data_parent, "children": [expected_data_child]}
+
+

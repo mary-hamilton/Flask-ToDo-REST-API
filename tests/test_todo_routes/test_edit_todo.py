@@ -22,17 +22,15 @@ def assert_record_edited(todo, original_values, edited_data):
 
 
 
-
-
-def assert_successful_response_edit_todo(response, original_values, edited_data, current_user):
+def assert_successful_response_edit_todo(response, original_values, edited_data):
     # expected response is original data overwritten with any values sent in edited data
-    expected_values = copy.deepcopy(original_values)
+    expected_values = copy.copy(original_values)
     expected_values.update(edited_data)
     # We always explicitly expect to receive the original ID
     expected_values["id"] = original_values["id"]
     # do not return none values
     expected_values = remove_null_values(expected_values)
-    expected_response = {**expected_values, "user_id": current_user.id}
+    expected_response = {**expected_values}
     assert_successful_response_generic(response, 200, expected_response)
 
 
@@ -64,9 +62,8 @@ def test_successful_edit_todo_single_todo_in_database(client, edited_data, creat
     response = client.patch(f"/todos/{original_values['id']}", json=edited_data)
 
     if client.authenticated:
-        current_user = client.current_user
         assert_record_edited(todo, original_values, edited_data)
-        assert_successful_response_edit_todo(response, original_values, edited_data, current_user)
+        assert_successful_response_edit_todo(response, original_values, edited_data)
     else:
         assert_record_unchanged(todo, original_values)
         assert_unauthenticated_response(client, response)
@@ -82,8 +79,7 @@ def test_successful_edit_todo_multiple_todos_in_database(client, multiple_sample
     response = client.patch(f"/todos/{original_values['id']}", json=EDITED_DATA)
 
     if client.authenticated:
-        current_user = client.current_user
-        assert_successful_response_edit_todo(response, original_values, EDITED_DATA, current_user)
+        assert_successful_response_edit_todo(response, original_values, EDITED_DATA)
         for todo in multiple_sample_todos:
             original_values = get_original_values_todo(todo)
             if todo.id == original_id:

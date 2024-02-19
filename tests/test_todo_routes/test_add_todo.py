@@ -10,13 +10,12 @@ DUPLICATE_TITLE_ERROR = "Error: Your todo title must be unique."
 
 
 # CHANGE THIS
-def assert_todo_added_to_database(response, expected_response_data, todo_id):
-    todo = db.session.get(Todo, todo_id)
+def assert_todo_added_to_database(expected_values, todo_id):
+    todo = db.session.scalars(db.session.query(Todo).filter_by(id=todo_id)).one()
     assert todo is not None
-    for key, value in expected_response_data.items():
+    for key, value in expected_values.items():
         assert getattr(todo, key) == value
-    for key, value in response.json.items():
-        assert getattr(todo, key) == value
+
 
 
 def assert_todo_not_added_to_database(expected_id):
@@ -24,8 +23,8 @@ def assert_todo_not_added_to_database(expected_id):
     assert added_todo is None
 
 
-def assert_successful_response_add_todo(response, expected_response_data):
-    assert_successful_response_generic(response, 201, expected_response_data)
+def assert_successful_response_add_todo(response, expected_values):
+    assert_successful_response_generic(response, 201, expected_values)
 
 
 
@@ -49,9 +48,9 @@ def test_add_to_empty_database(client, data):
 
     if client.authenticated:
         current_user = client.current_user
-        expected_response_data = {**data, "user_id": current_user.id, "id": expected_id}
-        assert_successful_response_add_todo(response, expected_response_data)
-        assert_todo_added_to_database(response, expected_response_data, expected_id)
+        expected_values = {**data, "user_id": current_user.id, "id": expected_id, "checked": False}
+        assert_successful_response_add_todo(response, expected_values)
+        assert_todo_added_to_database(expected_values, expected_id)
     else:
         assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(client, response)
@@ -77,9 +76,9 @@ def test_add_to_populated_database(client, data, multiple_sample_todos):
 
     if client.authenticated:
         current_user = client.current_user
-        expected_response_data = {**data, "user_id": current_user.id, "id": expected_id}
-        assert_successful_response_add_todo(response, expected_response_data)
-        assert_todo_added_to_database(response, expected_response_data, expected_id)
+        expected_values = {**data, "user_id": current_user.id, "id": expected_id, "checked": False}
+        assert_successful_response_add_todo(response, expected_values)
+        assert_todo_added_to_database(expected_values, expected_id)
     else:
         assert_todo_not_added_to_database(expected_id)
         assert_unauthenticated_response(client, response)
@@ -95,10 +94,10 @@ def test_add_with_parent_todo(client, create_todo):
 
     if client.authenticated:
         current_user = client.current_user
+        expected_values = {**data, "user_id": current_user.id, "id": expected_id, "parent_id": parent_todo.id, "checked": False}
+        assert_successful_response_add_todo(response, expected_values)
+        assert_todo_added_to_database(expected_values, expected_id)
         added_todo = db.session.get(Todo, expected_id)
-        expected_response_data = {**data, "user_id": current_user.id, "id": expected_id, "parent_id": parent_todo.id}
-        assert_successful_response_add_todo(response, expected_response_data)
-        assert_todo_added_to_database(response, expected_response_data, expected_id)
         assert_current_parent_relationship(added_todo, parent_todo)
     else:
         assert_todo_not_added_to_database(expected_id)

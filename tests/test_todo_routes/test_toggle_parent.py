@@ -7,7 +7,7 @@ def assert_current_parent_relationship(baby_todo, parent_todo):
     assert baby_todo in parent_todo.children
 
 def assert_new_parent_relationship_created(baby_todo, parent_todo, baby_original_values):
-    assert baby_original_values["parent_id"] is not parent_todo.id
+    assert baby_original_values.get("parent_id") is not parent_todo.id
     assert_current_parent_relationship(baby_todo, parent_todo)
 
 
@@ -18,8 +18,10 @@ def assert_successful_response_add_parent(response, baby_original_values, parent
 
 
 def confirm_original_parent_relationship(baby_todo, parent_original_values):
+
     # Eh do not like this
-    return any(child.id == baby_todo.id for child in parent_original_values["children"])
+    return any(child["id"] == baby_todo.id for child in parent_original_values["children"])
+
 
 def assert_existing_parent_relationship_removed(baby_todo, parent_todo, baby_original_values, parent_original_values):
     assert baby_original_values["parent_id"] is parent_todo.id
@@ -57,8 +59,10 @@ def test_remove_parent_todo_from_existing_todo(client, create_todo):
     parent_todo = create_todo(title="Parent Todo")
     baby_todo = create_todo(title="Baby Todo", parent_id=parent_todo.id)
 
-    parent_original_values = get_original_values_todo(parent_todo)
+    parent_original_values = get_original_values_todo_with_children(parent_todo)
     baby_original_values = get_original_values_todo(baby_todo)
+
+
 
     response = client.patch(f"/todos/{baby_todo.id}/toggle_parent", json={"parent_id": None})
 
@@ -77,7 +81,7 @@ def test_replace_parent_todo_on_existing_todo(client, create_todo):
     new_parent_todo = create_todo(title="New Parent Todo")
     baby_todo = create_todo(title="Baby Todo", parent_id=parent_todo.id)
 
-    parent_original_values = get_original_values_todo(parent_todo)
+    parent_original_values = get_original_values_todo_with_children(parent_todo)
     new_parent_original_values = get_original_values_todo(new_parent_todo)
     baby_original_values = get_original_values_todo(baby_todo)
 

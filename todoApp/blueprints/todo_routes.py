@@ -7,7 +7,7 @@ from sqlalchemy.exc import NoResultFound
 from todoApp.blueprints.user_routes import require_token
 from todoApp.exceptions.validation_exception import ValidationException
 from todoApp.extensions.db import db
-from todoApp.models.Todo import Todo, serialize_todo
+from todoApp.models.Todo import Todo, serialize_todo, serialize_todo_with_children
 from todoApp.utils.validation_utils import validate_todo_route_param
 
 todos = Blueprint('todos', __name__)
@@ -128,6 +128,7 @@ def toggle_parent(current_user, todo_id):
     data = request.get_json()
     parent_id_to_add = data.get("parent_id")
     try:
+        validate_todo_route_param(todo_id)
         child_todo = db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
         if parent_id_to_add is not None:
             if parent_id_to_add == int(todo_id):
@@ -142,3 +143,41 @@ def toggle_parent(current_user, todo_id):
         return jsonify(f"Error: {error}."), 400
     except NoResultFound:
         return jsonify(f"Error: Parent or child todo does not exist."), 404
+
+@todos.patch('/todos/<todo_id>/check')
+@require_token
+def check_todo(current_user, todo_id):
+    data = request.get_json()
+    checked = data.get("checked")
+    try:
+        validate_todo_route_param(todo_id)
+        todo_to_update = db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
+        if checked is True or checked is False:
+            todo_to_update.checked = checked
+        # Behaviour for todos with children - checking a parent checks all children
+        if checked is True and todo_to_update.children is not None:
+            for child in todo_to_update.children:
+                child.checked = True
+        # Behavior for todos with parents
+        if todo_to_update.parent_id is not None:
+            todo_parent = db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=todo_to_update.parent_id)).one()
+            # Unchecking a sub to*do also unchecks its parent
+            if checked is False:
+                todo_parent.checked = False
+            # If there are no remaining unchecked children, check the parent
+            if checked is True:
+                unchecked_sibling_flag = False
+                for child in todo_parent.children:
+                    if child.checked is False:
+                        unchecked_sibling_flag = True
+                        break
+                if not unchecked_sibling_flag:
+                    todo_parent.checked = True
+        db.session.commit()
+        db.session.refresh(todo_to_update)
+        return jsonify(serialize_todo(todo_to_update))
+    except ValidationException as error:
+        return jsonify(f"Error: {error}."), 400
+    except NoResultFound:
+        return jsonify(f"Error: Todo does not exist."), 404
+

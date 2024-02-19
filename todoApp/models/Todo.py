@@ -12,6 +12,7 @@ class Todo(db.Model):
     id: Mapped[int] = db.mapped_column(primary_key=True)
     title: Mapped[str] = db.mapped_column(db.String(40))
     description: Mapped[Optional[str]] = db.mapped_column(db.String(250))
+    checked: Mapped[bool] = db.mapped_column(db.Boolean)
     user_id: Mapped[int] = db.mapped_column(ForeignKey('user.id'))
     user: Mapped["User"] = db.relationship(back_populates="todos")
     parent_id: Mapped[Optional[int]] = db.mapped_column(ForeignKey('todo.id'))
@@ -22,6 +23,7 @@ class Todo(db.Model):
         self.description = description
         self.user_id = user_id
         self.parent_id = parent_id
+        self.checked = False
 
 
     # Equality method for testing purposes
@@ -59,9 +61,12 @@ class Todo(db.Model):
             return description
 
 
+def serialize_todo_with_children(todo_to_serialize):
+    return {**serialize_model(todo_to_serialize, Todo), "checked": todo_to_serialize.checked}
+
 def serialize_todo(todo_to_serialize):
-    return serialize_model(todo_to_serialize, Todo)
-
-
-
+    serialized_todo = {**serialize_model(todo_to_serialize, Todo), "checked": todo_to_serialize.checked}
+    if serialized_todo.get("children"):
+        del serialized_todo["children"]
+    return serialized_todo
 
