@@ -197,12 +197,7 @@ def get_original_values_todo(todo):
 
 
 def get_original_values_todo_with_children(todo):
-    # Just do not understand why eager loading won't work here!
-    # db.session.scalars(db.session.query(Todo).options(selectinload(Todo.children)).filter_by(id=todo.id)).one()
-
-    # Infuriating hacky solution
-    if todo.children:
-        return serialize_todo_with_children(todo)
+    return serialize_todo_with_children(todo)
 
 
 def remove_null_values(dict):

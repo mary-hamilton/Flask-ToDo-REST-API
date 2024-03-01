@@ -5,14 +5,9 @@ from todoApp.models.Todo import *
 from tests.conftest import *
 
 
-def make_get_todo_json(expected_values, current_user):
-    expected_json = {**expected_values, "user_id": current_user.id}
-    expected_json = remove_null_values(expected_json)
-    return expected_json
+def assert_successful_response_get_todo_by_id(response, original_values):
+    assert_successful_response_generic(response, 200, original_values)
 
-def assert_successful_response_get_todo_by_id(response, original_values, current_user):
-    expected_json = make_get_todo_json(original_values, current_user)
-    assert_successful_response_generic(response, 200, expected_json)
 
 def test_successful_get_todo_when_single_todo_in_database(client, create_todo):
 
@@ -22,8 +17,7 @@ def test_successful_get_todo_when_single_todo_in_database(client, create_todo):
     response = client.get(f"/todos/{original_values['id']}")
 
     if client.authenticated:
-        current_user = client.current_user
-        assert_successful_response_get_todo_by_id(response, original_values, current_user)
+        assert_successful_response_get_todo_by_id(response, original_values)
         assert_record_unchanged(todo, original_values)
     else:
         assert_unauthenticated_response(client, response)
@@ -40,12 +34,28 @@ def test_successful_get_todo_when_multiple_todos_in_database(client, index, mult
     response = client.get(f"/todos/{original_values['id']}")
 
     if client.authenticated:
-        current_user = client.current_user
-        assert_successful_response_get_todo_by_id(response, original_values, current_user)
+        assert_successful_response_get_todo_by_id(response, original_values)
         assert_record_unchanged(todo, original_values)
     else:
         assert_unauthenticated_response(client, response)
         assert_record_unchanged(todo, original_values)
+
+
+def test_successful_get_todo_with_child_todos(client, create_todo):
+    parent_todo = create_todo(title="Parent Todo")
+    create_todo(title="Child Todo 1", parent_id=parent_todo.id)
+    create_todo(title="Child Todo 2", parent_id=parent_todo.id)
+
+    parent_original_values = get_original_values_todo_with_children(parent_todo)
+
+    response = client.get(f"/todos/{parent_original_values['id']}")
+
+    if client.authenticated:
+        assert_successful_response_get_todo_by_id(response, parent_original_values)
+        assert_record_unchanged(parent_todo, parent_original_values)
+    else:
+        assert_unauthenticated_response(client, response)
+        assert_record_unchanged(parent_todo, parent_original_values)
 
 
 def test_todo_not_found_when_database_empty(client):

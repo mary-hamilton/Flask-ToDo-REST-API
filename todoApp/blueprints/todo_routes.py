@@ -21,6 +21,10 @@ def add_todo(current_user):
     title, description, parent_id = data.get('title'), data.get('description'), data.get('parent_id')
 
     try:
+        if parent_id:
+            # checking that parent_todo actually exists; throw error if not
+            db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=parent_id)).one()
+
         # If am only imposing unique title constraint on top-level parent todos, need to filter this by whether
         # a parent_id has been sent in the request
         if parent_id is None and db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, title=title)).first():
@@ -44,6 +48,8 @@ def add_todo(current_user):
     except ValidationException as exception_message:
         error = exception_message
         return jsonify(f"Error: {error}."), 400
+    except NoResultFound:
+        return jsonify(f"Error: Parent todo does not exist."), 404
 
 
 
@@ -52,7 +58,7 @@ def add_todo(current_user):
 def get_all_todos(current_user):
     # Change so found todos is a list of top-level todos only. Can fetch subtodos from
     # database on click.
-    found_todos = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id)).all()
+    found_todos = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, parent_id=None)).all()
     serialized_todos = [serialize_todo(found_todo) for found_todo in found_todos]
     return jsonify(serialized_todos)
 
@@ -64,7 +70,7 @@ def get_todo(current_user, todo_id):
     try:
         validate_todo_route_param(todo_id)
         found_todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
-        return jsonify(serialize_todo(found_todo))
+        return jsonify(serialize_todo_with_children(found_todo))
     except ValidationException as error:
         return jsonify(f"Error: {error}."), 400
     except NoResultFound:

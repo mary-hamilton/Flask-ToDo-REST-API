@@ -28,9 +28,8 @@ def assert_successful_response_edit_todo(response, original_values, edited_data)
     expected_values.update(edited_data)
     # We always explicitly expect to receive the original ID
     expected_values["id"] = original_values["id"]
-    # do not return none values
-    expected_values = remove_null_values(expected_values)
-    expected_response = {**expected_values}
+    # do not expect to receive any None values
+    expected_response = remove_null_values(expected_values)
     assert_successful_response_generic(response, 200, expected_response)
 
 

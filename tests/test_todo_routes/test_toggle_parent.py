@@ -6,27 +6,26 @@ def assert_current_parent_relationship(baby_todo, parent_todo):
     assert baby_todo.parent_id == parent_todo.id
     assert baby_todo in parent_todo.children
 
-def assert_new_parent_relationship_created(baby_todo, parent_todo, baby_original_values):
+def assert_new_parent_relationship_created(baby_todo, parent_todo, baby_original_values, parent_original_values):
     assert baby_original_values.get("parent_id") is not parent_todo.id
+    if parent_original_values.get("children"):
+        assert baby_original_values not in parent_original_values.get("children")
     assert_current_parent_relationship(baby_todo, parent_todo)
 
 
 def assert_successful_response_add_parent(response, baby_original_values, parent_todo):
     expected_values = {**baby_original_values, "parent_id": parent_todo.id}
-    expected_json = remove_null_values(expected_values)
-    assert_successful_response_generic(response, 200, expected_json)
+    assert_successful_response_generic(response, 200, expected_values)
 
 
-def confirm_original_parent_relationship(baby_todo, parent_original_values):
-
-    # Eh do not like this
-    return any(child["id"] == baby_todo.id for child in parent_original_values["children"])
+def confirm_original_parent_relationship(baby_original_values, parent_original_values):
+    assert baby_original_values["parent_id"] is parent_original_values["id"]
+    assert baby_original_values in parent_original_values["children"]
 
 
 def assert_existing_parent_relationship_removed(baby_todo, parent_todo, baby_original_values, parent_original_values):
-    assert baby_original_values["parent_id"] is parent_todo.id
+    confirm_original_parent_relationship(baby_original_values, parent_original_values)
     assert baby_todo.parent_id is not parent_todo.id
-    assert confirm_original_parent_relationship(baby_todo, parent_original_values)
     assert baby_todo not in parent_todo.children
 
 
@@ -41,13 +40,13 @@ def test_add_parent_todo_to_existing_todo(client, create_todo):
     parent_todo = create_todo(title="Parent Todo")
     baby_todo = create_todo(title="Baby Todo")
 
-    parent_original_values = get_original_values_todo(parent_todo)
+    parent_original_values = get_original_values_todo_with_children(parent_todo)
     baby_original_values = get_original_values_todo(baby_todo)
 
     response = client.patch(f"/todos/{baby_todo.id}/toggle_parent", json={"parent_id": parent_todo.id})
 
     if client.authenticated:
-        assert_new_parent_relationship_created(baby_todo, parent_todo, baby_original_values)
+        assert_new_parent_relationship_created(baby_todo, parent_todo, baby_original_values, parent_original_values)
         assert_successful_response_add_parent(response, baby_original_values, parent_todo)
     else:
         assert_record_unchanged(baby_todo, baby_original_values)
@@ -61,8 +60,6 @@ def test_remove_parent_todo_from_existing_todo(client, create_todo):
 
     parent_original_values = get_original_values_todo_with_children(parent_todo)
     baby_original_values = get_original_values_todo(baby_todo)
-
-
 
     response = client.patch(f"/todos/{baby_todo.id}/toggle_parent", json={"parent_id": None})
 
@@ -89,7 +86,7 @@ def test_replace_parent_todo_on_existing_todo(client, create_todo):
 
     if client.authenticated:
         assert_existing_parent_relationship_removed(baby_todo, parent_todo, baby_original_values, parent_original_values)
-        assert_new_parent_relationship_created(baby_todo, new_parent_todo, baby_original_values)
+        assert_new_parent_relationship_created(baby_todo, new_parent_todo, baby_original_values, new_parent_original_values)
         assert_successful_response_add_parent(response, baby_original_values, new_parent_todo)
     else:
         assert_record_unchanged(baby_todo, baby_original_values)

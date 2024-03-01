@@ -16,7 +16,7 @@ class Todo(db.Model):
     user_id: Mapped[int] = db.mapped_column(ForeignKey('user.id'))
     user: Mapped["User"] = db.relationship(back_populates="todos")
     parent_id: Mapped[Optional[int]] = db.mapped_column(ForeignKey('todo.id'))
-    children: Mapped[Optional[List["Todo"]]] = db.relationship("Todo", cascade="all, delete")
+    children: Mapped[List["Todo"]] = db.relationship("Todo", cascade="all, delete")
 
     def __init__(self, title, user_id, parent_id=None, description=None):
         self.title = title
@@ -62,11 +62,11 @@ class Todo(db.Model):
 
 
 def serialize_todo_with_children(todo_to_serialize):
-    return {**serialize_model(todo_to_serialize, Todo), "checked": todo_to_serialize.checked}
+    serialized_todo = {**serialize_model(todo_to_serialize, Todo)}
+    serialized_todo['children'] = todo_to_serialize.children
+    return {**serialize_model(todo_to_serialize, Todo)}
 
 def serialize_todo(todo_to_serialize):
-    serialized_todo = {**serialize_model(todo_to_serialize, Todo), "checked": todo_to_serialize.checked}
-    if serialized_todo.get("children"):
-        del serialized_todo["children"]
+    serialized_todo = {**serialize_model(todo_to_serialize, Todo)}
     return serialized_todo
 

@@ -2,8 +2,8 @@ def serialize_model(obj, model_class):
     if isinstance(obj, model_class):
         data = {}
         for key, value in obj.__dict__.items():
-            # handles not returning null values
-            # might change this, not sure of best format yet
+
+            # does not return None or empty values but DOES return False
             if not key.startswith('_') and (value is False or value):
                 if isinstance(value, list):
                     data[key] = [serialize_model(item, type(item)) for item in value]
