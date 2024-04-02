@@ -1,6 +1,8 @@
 def serialize_model(obj, model_class):
     if isinstance(obj, model_class):
         data = {}
+        # As written, this will not serialize any SQLAlchemy relationship properties; they
+        # need to be handled explicitly within the specific model serialization functions
         for key, value in obj.__dict__.items():
 
             # does not return None or empty values but DOES return False

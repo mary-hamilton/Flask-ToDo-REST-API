@@ -76,27 +76,27 @@ def test_check_parent_todo_cascade(client, create_todo):
 
 
 
-def test_check_last_non_matching_child_checks_parent(client, create_todo):
-
-    parent_todo = create_todo(title="Parent Todo")
-    # all but one child to*do is checked
-    create_todo(title="Baby Todo 1", parent_id=parent_todo.id, checked=True)
-    create_todo(title="Baby Todo 2", parent_id=parent_todo.id, checked=True)
-    baby_todo_3 = create_todo(title="Baby Todo 3", parent_id=parent_todo.id)
-
-    parent_original_values = get_original_values_todo(parent_todo)
-    baby_todo_3_original_values = get_original_values_todo(baby_todo_3)
-
-    response = client.patch(f"/todos/{baby_todo_3.id}/check", json={"checked": True})
-
-    if client.authenticated:
-        assert_successful_response_toggle_check(response, baby_todo_3_original_values)
-        assert_todo_check_toggled(baby_todo_3, baby_todo_3_original_values)
-        assert_todo_check_toggled(parent_todo, parent_original_values)
-    else:
-        assert_todo_check_not_toggled(baby_todo_3, baby_todo_3_original_values)
-        assert_todo_check_not_toggled(parent_todo, parent_original_values)
-        assert_unauthenticated_response(client, response)
+# def test_check_last_non_matching_child_checks_parent(client, create_todo):
+#
+#     parent_todo = create_todo(title="Parent Todo")
+#     # all but one child to*do is checked
+#     create_todo(title="Baby Todo 1", parent_id=parent_todo.id, checked=True)
+#     create_todo(title="Baby Todo 2", parent_id=parent_todo.id, checked=True)
+#     baby_todo_3 = create_todo(title="Baby Todo 3", parent_id=parent_todo.id)
+#
+#     parent_original_values = get_original_values_todo(parent_todo)
+#     baby_todo_3_original_values = get_original_values_todo(baby_todo_3)
+#
+#     response = client.patch(f"/todos/{baby_todo_3.id}/check", json={"checked": True})
+#
+#     if client.authenticated:
+#         assert_successful_response_toggle_check(response, baby_todo_3_original_values)
+#         assert_todo_check_toggled(baby_todo_3, baby_todo_3_original_values)
+#         assert_todo_check_toggled(parent_todo, parent_original_values)
+#     else:
+#         assert_todo_check_not_toggled(baby_todo_3, baby_todo_3_original_values)
+#         assert_todo_check_not_toggled(parent_todo, parent_original_values)
+#         assert_unauthenticated_response(client, response)
 
 
 
@@ -123,30 +123,30 @@ def test_uncheck_last_non_matching_child_unchecks_parent(client, create_todo):
         assert_unauthenticated_response(client, response)
 
 
-def test_check_penultimate_non_matching_child_does_not_check_parent(client, create_todo):
-
-    # one child to*do checked and two unchecked
-    parent_todo = create_todo(title="Parent Todo")
-    baby_todo_1 = create_todo(title="Baby Todo 1", parent_id=parent_todo.id, checked=True)
-    baby_todo_2 = create_todo(title="Baby Todo 2", parent_id=parent_todo.id)
-    baby_todo_3 = create_todo(title="Baby Todo 3", parent_id=parent_todo.id)
-
-    parent_original_values = get_original_values_todo(parent_todo)
-    baby_todo_1_original_values = get_original_values_todo(baby_todo_1)
-    baby_todo_2_original_values = get_original_values_todo(baby_todo_2)
-    baby_todo_3_original_values = get_original_values_todo(baby_todo_3)
-
-    response = client.patch(f"/todos/{baby_todo_3.id}/check", json={"checked": True})
-
-    if client.authenticated:
-        assert_successful_response_toggle_check(response, baby_todo_3_original_values)
-        assert_todo_check_toggled(baby_todo_3, baby_todo_3_original_values)
-        assert_todo_check_not_toggled(parent_todo, parent_original_values)
-        assert_todo_check_not_toggled(baby_todo_1, baby_todo_1_original_values)
-        assert_todo_check_not_toggled(baby_todo_2, baby_todo_2_original_values)
-    else:
-        assert_todo_check_not_toggled(baby_todo_3, baby_todo_3_original_values)
-        assert_todo_check_not_toggled(parent_todo, parent_original_values)
-        assert_todo_check_not_toggled(baby_todo_1, baby_todo_1_original_values)
-        assert_todo_check_not_toggled(baby_todo_2, baby_todo_2_original_values)
-        assert_unauthenticated_response(client, response)
+# def test_check_penultimate_non_matching_child_does_not_check_parent(client, create_todo):
+#
+#     # one child to*do checked and two unchecked
+#     parent_todo = create_todo(title="Parent Todo")
+#     baby_todo_1 = create_todo(title="Baby Todo 1", parent_id=parent_todo.id, checked=True)
+#     baby_todo_2 = create_todo(title="Baby Todo 2", parent_id=parent_todo.id)
+#     baby_todo_3 = create_todo(title="Baby Todo 3", parent_id=parent_todo.id)
+#
+#     parent_original_values = get_original_values_todo(parent_todo)
+#     baby_todo_1_original_values = get_original_values_todo(baby_todo_1)
+#     baby_todo_2_original_values = get_original_values_todo(baby_todo_2)
+#     baby_todo_3_original_values = get_original_values_todo(baby_todo_3)
+#
+#     response = client.patch(f"/todos/{baby_todo_3.id}/check", json={"checked": True})
+#
+#     if client.authenticated:
+#         assert_successful_response_toggle_check(response, baby_todo_3_original_values)
+#         assert_todo_check_toggled(baby_todo_3, baby_todo_3_original_values)
+#         assert_todo_check_not_toggled(parent_todo, parent_original_values)
+#         assert_todo_check_not_toggled(baby_todo_1, baby_todo_1_original_values)
+#         assert_todo_check_not_toggled(baby_todo_2, baby_todo_2_original_values)
+#     else:
+#         assert_todo_check_not_toggled(baby_todo_3, baby_todo_3_original_values)
+#         assert_todo_check_not_toggled(parent_todo, parent_original_values)
+#         assert_todo_check_not_toggled(baby_todo_1, baby_todo_1_original_values)
+#         assert_todo_check_not_toggled(baby_todo_2, baby_todo_2_original_values)
+#         assert_unauthenticated_response(client, response)

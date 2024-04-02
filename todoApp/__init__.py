@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 
 from .blueprints.user_routes import users
 from .extensions.db import db
@@ -15,6 +16,8 @@ from .config import *
 def create_app(config_class=DevelopmentConfig):
 
     app = Flask(__name__)
+    # TODO configure CORS
+    CORS(app)
     app.config.from_object(config_class)
 
     db.init_app(app)
@@ -29,9 +32,3 @@ def create_app(config_class=DevelopmentConfig):
         db.create_all()
 
     return app
-
-
-todooo = Todo(title='Todo', description='Blah', user_id=2)
-
-print(todooo.children)
-print(todooo.children is None)

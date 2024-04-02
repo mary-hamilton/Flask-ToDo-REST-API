@@ -66,7 +66,10 @@ def serialize_todo_with_children(todo_to_serialize):
     serialized_todo['children'] = todo_to_serialize.children
     return {**serialize_model(todo_to_serialize, Todo)}
 
+
 def serialize_todo(todo_to_serialize):
+    # TODO change this so I can get some sort of indication of how many
+    #  children and (maybe) their checked status
     serialized_todo = {**serialize_model(todo_to_serialize, Todo)}
     return serialized_todo
 

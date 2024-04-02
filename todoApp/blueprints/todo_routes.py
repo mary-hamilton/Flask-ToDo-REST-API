@@ -8,6 +8,7 @@ from todoApp.blueprints.user_routes import require_token
 from todoApp.exceptions.validation_exception import ValidationException
 from todoApp.extensions.db import db
 from todoApp.models.Todo import Todo, serialize_todo, serialize_todo_with_children
+from todoApp.utils.cascading_functions import apply_todo_tree, make_todo_checked, make_todo_matcher
 from todoApp.utils.validation_utils import validate_todo_route_param
 
 todos = Blueprint('todos', __name__)
@@ -58,7 +59,9 @@ def add_todo(current_user):
 def get_all_todos(current_user):
     # Change so found todos is a list of top-level todos only. Can fetch subtodos from
     # database on click.
-    found_todos = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, parent_id=None)).all()
+    found_todos = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id
+                                                               , parent_id=None
+                                                               )).all()
     serialized_todos = [serialize_todo(found_todo) for found_todo in found_todos]
     return jsonify(serialized_todos)
 
@@ -66,7 +69,6 @@ def get_all_todos(current_user):
 @todos.get('/todos/<todo_id>')
 @require_token
 def get_todo(current_user, todo_id):
-    # Change to return subtodos?
     try:
         validate_todo_route_param(todo_id)
         found_todo = db.session.scalars(db.select(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
@@ -136,11 +138,18 @@ def toggle_parent(current_user, todo_id):
     try:
         validate_todo_route_param(todo_id)
         child_todo = db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
+
         if parent_id_to_add is not None:
             if parent_id_to_add == int(todo_id):
                 raise ValidationException('Todo cannot be its own parent')
             # checking that parent_todo actually exists; throw error if not
-            db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=parent_id_to_add)).one()
+            parent_todo = db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=parent_id_to_add)).one()
+
+            # check that we're not trying to create a circular relationship anywhere in the tree
+            todo_matcher = make_todo_matcher(parent_todo)
+            if apply_todo_tree(child_todo, todo_matcher, return_result=True):
+                raise ValidationException('Cannot create circular parent-child relationship')
+
         child_todo.parent_id = parent_id_to_add
         db.session.commit()
         updated_child_todo = db.session.get(Todo, todo_id)
@@ -158,12 +167,13 @@ def check_todo(current_user, todo_id):
     try:
         validate_todo_route_param(todo_id)
         todo_to_update = db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=todo_id)).one()
-        if checked is True or checked is False:
+
+        # Unchecking a to*do only affects that to*do
+        if checked is False:
             todo_to_update.checked = checked
-        # Behaviour for todos with children - checking a parent checks all children
-        if checked is True and todo_to_update.children is not None:
-            for child in todo_to_update.children:
-                child.checked = True
+        # Checking a to*do also checks all children
+        if checked is True:
+            apply_todo_tree(todo_to_update, make_todo_checked)
         # Behavior for todos with parents
         if todo_to_update.parent_id is not None:
             todo_parent = db.session.scalars(db.session.query(Todo).filter_by(user_id=current_user.id, id=todo_to_update.parent_id)).one()
@@ -171,14 +181,14 @@ def check_todo(current_user, todo_id):
             if checked is False:
                 todo_parent.checked = False
             # If there are no remaining unchecked children, check the parent
-            if checked is True:
-                unchecked_sibling_flag = False
-                for child in todo_parent.children:
-                    if child.checked is False:
-                        unchecked_sibling_flag = True
-                        break
-                if not unchecked_sibling_flag:
-                    todo_parent.checked = True
+            # if checked is True:
+            #     unchecked_sibling_flag = False
+            #     for child in todo_parent.children:
+            #         if child.checked is False:
+            #             unchecked_sibling_flag = True
+            #             break
+            #     if not unchecked_sibling_flag:
+            #         todo_parent.checked = True
         db.session.commit()
         db.session.refresh(todo_to_update)
         return jsonify(serialize_todo(todo_to_update))

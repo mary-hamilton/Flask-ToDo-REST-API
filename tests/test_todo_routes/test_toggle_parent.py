@@ -25,6 +25,8 @@ def confirm_original_parent_relationship(baby_original_values, parent_original_v
 
 def assert_existing_parent_relationship_removed(baby_todo, parent_todo, baby_original_values, parent_original_values):
     confirm_original_parent_relationship(baby_original_values, parent_original_values)
+    print("***************************")
+    print(baby_todo.parent_id)
     assert baby_todo.parent_id is not parent_todo.id
     assert baby_todo not in parent_todo.children
 
@@ -144,3 +146,44 @@ def test_cannot_create_relationship_with_self(client, create_todo):
         assert_record_unchanged(baby_todo, baby_original_values)
         assert_unauthenticated_response(client, response)
 
+
+def test_cannot_create_circular_relationship(client, create_todo):
+
+    parent_todo = create_todo(title="Parent Todo")
+    baby_todo = create_todo(title="Baby Todo", parent_id=parent_todo.id)
+
+    parent_original_values = get_original_values_todo(parent_todo)
+    baby_original_values = get_original_values_todo(baby_todo)
+
+    response = client.patch(f"/todos/{parent_todo.id}/toggle_parent", json={"parent_id":baby_todo.id})
+
+    if client.authenticated:
+        assert_record_unchanged(baby_todo, baby_original_values)
+        assert_record_unchanged(parent_todo, parent_original_values)
+        assert_unsuccessful_response_generic(response, 400, "Error: Cannot create circular parent-child relationship.")
+    else:
+        assert_record_unchanged(baby_todo, baby_original_values)
+        assert_record_unchanged(parent_todo, parent_original_values)
+        assert_unauthenticated_response(client, response)
+
+
+def test_cannot_create_circular_relationship_multi_level(client, create_todo):
+
+    parent_todo = create_todo(title="Parent Todo")
+    baby_todo = create_todo(title="Baby Todo", parent_id=parent_todo.id)
+    grandchild_todo = create_todo(title="Grandchild Todo", parent_id=baby_todo.id)
+    great_grandchild_todo = create_todo(title="Great Grandchild Todo", parent_id=grandchild_todo.id)
+
+    parent_original_values = get_original_values_todo(parent_todo)
+    great_grandchild_original_values = get_original_values_todo(great_grandchild_todo)
+
+    response = client.patch(f"/todos/{parent_todo.id}/toggle_parent", json={"parent_id":great_grandchild_todo.id})
+
+    if client.authenticated:
+        assert_record_unchanged(great_grandchild_todo, great_grandchild_original_values)
+        assert_record_unchanged(parent_todo, parent_original_values)
+        assert_unsuccessful_response_generic(response, 400, "Error: Cannot create circular parent-child relationship.")
+    else:
+        assert_record_unchanged(great_grandchild_todo, great_grandchild_original_values)
+        assert_record_unchanged(parent_todo, parent_original_values)
+        assert_unauthenticated_response(client, response)
